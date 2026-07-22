@@ -1,0 +1,48 @@
+{
+  "09748": {
+    "id": "test",
+    "name": "Test",
+    "tripCode": "09748",
+    "hostName": "Me",
+    "routeData": {
+      "rawUrl": "https://maps.google.com/?daddr=Seattle,WA",
+      "destinationName": "Seattle,WA",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1783538145091",
+        "name": "Me",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-07-08T19:15:45.091Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Seattle,WA",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Seattle,WA",
+    "notes": "Me created this shared trip."
+  }
+}

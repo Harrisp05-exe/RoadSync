@@ -11,8 +11,8 @@ export default function JoinTripScreen() {
   const [tripCode, setTripCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleJoinTrip = () => {
-    const result = joinTrip(tripCode, travelerName);
+  const handleJoinTrip = async () => {
+    const result = await joinTrip(tripCode, travelerName);
 
     if (result.error || !result.trip || !result.participant) {
       setErrorMessage(result.error ?? "Unable to join the trip right now.");

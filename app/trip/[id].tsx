@@ -18,7 +18,7 @@ import {
     type TripMemberStatus,
     updateParticipantStatus,
 } from "@/app-data/roadsync";
-import RouteMap from "@/components/route-map";
+import RouteMap from "../../components/route-map";
 
 const STATUS_OPTIONS: TripMemberStatus[] = ["Waiting", "Need Help", "Driving"];
 
@@ -31,10 +31,8 @@ export default function TripDetailsScreen() {
     name?: string;
   }>();
 
-  const [trip, setTrip] = useState<RoadTrip | undefined>(() => {
-    const tripCode = typeof params.tripCode === "string" ? params.tripCode : "";
-    return getTripByCode(tripCode) ?? activeTrip;
-  });
+  const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const tripCode =
     typeof params.tripCode === "string"
@@ -48,14 +46,34 @@ export default function TripDetailsScreen() {
     typeof params.isHost === "string" ? params.isHost === "true" : false;
 
   useEffect(() => {
-    const syncTrip = () => {
-      const latestTrip = getTripByCode(tripCode) ?? activeTrip;
-      setTrip(latestTrip);
+    let isMounted = true;
+
+    const syncTrip = async () => {
+      if (!tripCode) {
+        return;
+      }
+
+      try {
+        const latestTrip = await getTripByCode(tripCode);
+        if (isMounted) {
+          setTrip(latestTrip ?? activeTrip);
+        }
+      } catch {
+        if (isMounted) {
+          setTrip(activeTrip);
+        }
+      }
     };
 
-    syncTrip();
-    const timer = setInterval(syncTrip, 1000);
-    return () => clearInterval(timer);
+    void syncTrip();
+    const timer = setInterval(() => {
+      void syncTrip();
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
   }, [tripCode]);
 
   if (!trip) {
@@ -66,8 +84,9 @@ export default function TripDetailsScreen() {
     (participant) => participant.id === participantId,
   );
 
-  const handleStatusChange = (status: TripMemberStatus) => {
-    const updatedTrip = updateParticipantStatus(
+  const handleStatusChange = async (status: TripMemberStatus) => {
+    setIsRefreshing(true);
+    const updatedTrip = await updateParticipantStatus(
       trip.tripCode,
       participantId,
       status,
@@ -75,26 +94,34 @@ export default function TripDetailsScreen() {
     if (updatedTrip) {
       setTrip(updatedTrip);
     }
+    setIsRefreshing(false);
   };
 
-  const handleLeaveTrip = () => {
-    const updatedTrip = leaveTrip(trip.tripCode, participantId);
+  const handleLeaveTrip = async () => {
+    setIsRefreshing(true);
+    const updatedTrip = await leaveTrip(trip.tripCode, participantId);
     if (updatedTrip) {
       setTrip(updatedTrip);
     }
+    setIsRefreshing(false);
   };
 
-  const handleEndTrip = () => {
-    const updatedTrip = endTrip(trip.tripCode);
+  const handleEndTrip = async () => {
+    setIsRefreshing(true);
+    const updatedTrip = await endTrip(trip.tripCode);
     if (updatedTrip) {
       setTrip(updatedTrip);
     }
+    setIsRefreshing(false);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.heroCard}>
+          {isRefreshing ? (
+            <Text style={styles.refreshing}>Syncing trip updates…</Text>
+          ) : null}
           <View style={styles.rowBetween}>
             <Text style={styles.code}>Trip Code: {trip.tripCode}</Text>
             <View style={styles.statusBadge}>
@@ -247,6 +274,12 @@ const styles = StyleSheet.create({
   meta: {
     color: "#64748b",
     fontSize: 14,
+  },
+  refreshing: {
+    color: "#0f766e",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 4,
   },
   mapWrap: {
     minHeight: 260,

@@ -1,151 +1,229 @@
-import { router } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 
-import { activeTrip } from "@/app-data/roadsync";
+type OnboardingSlide = {
+  id: string;
+  title: string;
+  description: string;
+  image: number;
+};
+
+const slides: OnboardingSlide[] = [
+  {
+    id: "welcome",
+    title: "Welcome to RoadSync",
+    description:
+      "Keep every mile, moment, and member of your road trip in sync.",
+    image: require("../../assets/images/welcome_image.png"),
+  },
+  {
+    id: "create",
+    title: "Create your road trip",
+    description:
+      "Set up your trip, add the route, and invite your crew in just a few steps.",
+    image: require("../../assets/images/create_image.png"),
+  },
+  {
+    id: "join",
+    title: "Join your crew",
+    description:
+      "Use a trip code to join an existing journey and stay connected with everyone.",
+    image: require("../../assets/images/join_image.png"),
+  },
+  {
+    id: "navigate",
+    title: "Navigate together",
+    description:
+      "Follow the shared route, keep track of stops, and make every mile smoother.",
+    image: require("../../assets/images/navigate_image.png"),
+  },
+];
 
 export default function HomeScreen() {
-  const openActiveTrip = () => {
-    router.push({
-      pathname: "/trip/[id]",
-      params: {
-        id: activeTrip.id,
-        inviteCode: activeTrip.inviteCode,
-        name: activeTrip.name,
-        origin: activeTrip.origin,
-        destination: activeTrip.destination,
-        startTime: activeTrip.startTime,
-      },
-    });
+  const { width } = useWindowDimensions();
+  const contentWidth = width - 48;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = useRef<FlatList<OnboardingSlide>>(null);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(
+      event.nativeEvent.contentOffset.x / contentWidth,
+    );
+    const boundedIndex = Math.min(Math.max(nextIndex, 0), slides.length - 1);
+
+    setActiveIndex((currentIndex) =>
+      currentIndex === boundedIndex ? currentIndex : boundedIndex,
+    );
+  };
+
+  const goToSlide = (index: number) => {
+    setActiveIndex(index);
+    carouselRef.current?.scrollToIndex({ index, animated: true });
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.hero}>
-        <Text style={styles.logo}>🚗</Text>
-        <Text style={styles.title}>RoadSync</Text>
-        <Text style={styles.subtitle}>
-          Plan, share, and track every road trip from one place.
-        </Text>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.topBar}>
+          <Text style={styles.brand}>RoadSync</Text>
+          <Pressable accessibilityRole="button" hitSlop={12}>
+            <Text style={styles.skip}>Skip</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Active trip</Text>
-        <Text style={styles.cardTitle}>{activeTrip.name}</Text>
-        <Text style={styles.cardMeta}>
-          {activeTrip.origin} → {activeTrip.destination}
-        </Text>
-        <Text style={styles.cardStatus}>{activeTrip.safetyStatus}</Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={openActiveTrip}>
-          <Text style={styles.buttonText}>Open active trip</Text>
-        </TouchableOpacity>
-      </View>
+        <FlatList
+          ref={carouselRef}
+          data={slides}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(slide) => slide.id}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          renderItem={({ item }) => (
+            <View style={[styles.slide, { width: contentWidth }]}>
+              <Image
+                source={item.image}
+                style={styles.imagePlaceholder}
+                resizeMode="cover"
+              />
+            </View>
+          )}
+        />
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push("/create-trip")}
-        >
-          <Text style={styles.buttonText}>Create a new trip</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={() => router.push("/join-trip")}
-        >
-          <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-            Join an existing trip
+        <View style={styles.copy}>
+          <View
+            style={styles.pagination}
+            accessibilityLabel={`Slide ${activeIndex + 1} of ${slides.length}`}
+          >
+            {slides.map((slide, index) => (
+              <Pressable
+                key={slide.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Go to ${slide.title}`}
+                onPress={() => goToSlide(index)}
+                style={[styles.dot, index === activeIndex && styles.activeDot]}
+              />
+            ))}
+          </View>
+          <Text style={styles.title}>{slides[activeIndex].title}</Text>
+          <Text style={styles.description}>
+            {slides[activeIndex].description}
           </Text>
-        </TouchableOpacity>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Get started"
+          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        >
+          <Text style={styles.buttonText}>Get Started</Text>
+        </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#202021",
+  },
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#f8fafc",
-    gap: 16,
+    backgroundColor: "#315c5a",
+    marginHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 28,
   },
-  hero: {
+  topBar: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
-  logo: {
-    fontSize: 70,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#0f172a",
-  },
-  subtitle: {
-    fontSize: 18,
-    marginTop: 10,
-    textAlign: "center",
-    color: "#0f766e",
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#dbeafe",
-    padding: 18,
-    gap: 8,
-  },
-  cardLabel: {
-    color: "#64748b",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  cardTitle: {
-    color: "#0f172a",
-    fontSize: 24,
+  brand: {
+    color: "#f9f6f0",
+    fontSize: 16,
     fontWeight: "800",
   },
-  cardMeta: {
-    color: "#475569",
+  skip: {
+    color: "#111111",
     fontSize: 15,
+    fontWeight: "800",
   },
-  cardStatus: {
-    color: "#0f766e",
-    fontSize: 14,
-    fontWeight: "700",
+  slide: {
+    paddingHorizontal: 16,
   },
-  actions: {
-    gap: 10,
+  imagePlaceholder: {
+    flex: 1,
+    backgroundColor: "#d8d8d8",
+    minHeight: 250,
+  },
+  copy: {
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingTop: 20,
+    flex: 0.9,
+  },
+  pagination: {
+    flexDirection: "row",
+    gap: 7,
+    marginBottom: 18,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#9eb3ae",
+  },
+  activeDot: {
+    width: 22,
+    backgroundColor: "#ffffff",
+  },
+  title: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  description: {
+    color: "#e1ebe7",
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 12,
+    maxWidth: 290,
+    textAlign: "center",
   },
   button: {
-    width: "100%",
-    backgroundColor: "#2563eb",
-    padding: 15,
-    borderRadius: 12,
-  },
-  primaryButton: {
-    width: "100%",
-    backgroundColor: "#0f766e",
-    padding: 14,
-    borderRadius: 12,
     alignItems: "center",
-    marginTop: 4,
+    alignSelf: "center",
+    backgroundColor: "#050505",
+    borderRadius: 24,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 30,
+    width: "68%",
   },
-  secondaryButton: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
+  pressed: {
+    opacity: 0.75,
   },
   buttonText: {
-    color: "white",
+    color: "#ffffff",
     textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  secondaryButtonText: {
-    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: "800",
   },
 });

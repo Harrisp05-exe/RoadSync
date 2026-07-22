@@ -11,8 +11,8 @@ export default function CreateTripScreen() {
   const [hostName, setHostName] = useState("");
   const [mapsLink, setMapsLink] = useState("");
 
-  const handleCreateTrip = () => {
-    const trip = createTrip({
+  const handleCreateTrip = async () => {
+    const trip = await createTrip({
       name: tripName,
       hostName,
       mapUrl: mapsLink,
