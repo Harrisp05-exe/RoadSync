@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useRef, useState } from "react";
 import {
   FlatList,
@@ -74,12 +75,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <LinearGradient
+        colors={["#e8c7f2", "#102d63"]}
+        locations={[0, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.container}
+      >
         <View style={styles.topBar}>
           <Text style={styles.brand}>RoadSync</Text>
-          <Pressable accessibilityRole="button" hitSlop={12}>
-            <Text style={styles.skip}>Skip</Text>
-          </Pressable>
         </View>
 
         <FlatList
@@ -87,6 +91,7 @@ export default function HomeScreen() {
           data={slides}
           horizontal
           pagingEnabled
+          style={styles.carousel}
           showsHorizontalScrollIndicator={false}
           keyExtractor={(slide) => slide.id}
           onScroll={handleScroll}
@@ -130,7 +135,7 @@ export default function HomeScreen() {
         >
           <Text style={styles.buttonText}>Get Started</Text>
         </Pressable>
-      </View>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -142,41 +147,48 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#315c5a",
     marginHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 28,
   },
   topBar: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    minHeight: 42,
     paddingHorizontal: 16,
     paddingBottom: 8,
+    position: "relative",
   },
   brand: {
     color: "#f9f6f0",
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 21,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
-  skip: {
-    color: "#111111",
-    fontSize: 15,
-    fontWeight: "800",
+  carousel: {
+    flex: 1,
+    marginBottom: 12,
+    marginTop: 12,
   },
   slide: {
+    alignItems: "center",
+    paddingBottom: 8,
     paddingHorizontal: 16,
+    paddingTop: 16,
   },
   imagePlaceholder: {
+    alignSelf: "center",
+    borderRadius: 4,
     flex: 1,
     backgroundColor: "#d8d8d8",
     minHeight: 250,
+    width: "100%",
   },
   copy: {
     alignItems: "center",
     paddingHorizontal: 28,
     paddingTop: 20,
-    flex: 0.9,
+    paddingBottom: 18,
   },
   pagination: {
     flexDirection: "row",
