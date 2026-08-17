@@ -2,12 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    Animated,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 
 const STORAGE_KEYS = {
@@ -205,7 +205,9 @@ export default function AuthScreen() {
             </Pressable>
           </Animated.View>
 
-          <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+          <Pressable
+            onPress={() => setMode(mode === "login" ? "signup" : "login")}
+          >
             <Text style={styles.toggleText}>
               {mode === "login"
                 ? "Need an account? Sign up"

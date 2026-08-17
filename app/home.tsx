@@ -1,12 +1,12 @@
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import {
-  Animated,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 export default function HomeScreen() {
@@ -27,86 +27,88 @@ export default function HomeScreen() {
   return (
     <Animated.View style={[styles.safeArea, { opacity: fadeIn }]}>
       <View style={styles.container}>
-        <Animated.View
-          style={{
-            opacity: fadeIn,
-            transform: [
-              {
-                translateY: fadeIn.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [14, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.eyebrow}>Your road ahead</Text>
-              <Text style={styles.brand}>RoadSync</Text>
+        <View style={styles.content}>
+          <Animated.View
+            style={{
+              opacity: fadeIn,
+              transform: [
+                {
+                  translateY: fadeIn.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [14, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.eyebrow}>Your road ahead</Text>
+                <Text style={styles.brand}>RoadSync</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+                onPress={() => router.push("/profile")}
+                style={({ pressed }) => [
+                  styles.avatar,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.avatarText}>M</Text>
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open profile"
-              onPress={() => router.push("/profile")}
-              style={({ pressed }) => [
-                styles.avatar,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.avatarText}>M</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        <Animated.View
-          style={{
-            opacity: fadeIn,
-            transform: [
-              {
-                translateY: fadeIn.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [18, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <View style={styles.heroCard}>
-            <View style={styles.heroCopy}>
-              <Text style={styles.heroGreeting}>Good morning, Maya</Text>
-              <Text style={styles.heroTitle}>Ready for the next mile?</Text>
-              <Text style={styles.heroSubtitle}>
-                Plan the route, keep your crew updated, and move together with
-                confidence.
-              </Text>
+          <Animated.View
+            style={{
+              opacity: fadeIn,
+              transform: [
+                {
+                  translateY: fadeIn.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [18, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={styles.heroCard}>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroGreeting}>Good morning, Maya</Text>
+                <Text style={styles.heroTitle}>Ready for the next mile?</Text>
+                <Text style={styles.heroSubtitle}>
+                  Plan the route, keep your crew updated, and move together with
+                  confidence.
+                </Text>
+              </View>
+              <Image
+                source={require("../assets/images/welcome_image.png")}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
             </View>
-            <Image
-              source={require("../assets/images/welcome_image.png")}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        <Animated.View
-          style={{
-            opacity: fadeIn,
-            transform: [
-              {
-                translateY: fadeIn.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [18, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <View style={styles.tripCard}>
-            <Text style={styles.tripLabel}>Active trip</Text>
-            <Text style={styles.emptyStateText}>No active trips</Text>
-          </View>
-        </Animated.View>
+          <Animated.View
+            style={{
+              opacity: fadeIn,
+              transform: [
+                {
+                  translateY: fadeIn.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [18, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={styles.tripCard}>
+              <Text style={styles.tripLabel}>Active trip</Text>
+              <Text style={styles.emptyStateText}>No active trips</Text>
+            </View>
+          </Animated.View>
+        </View>
 
         <Animated.View
           style={{
@@ -201,6 +203,10 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 28,
     backgroundColor: "#edf2fb",
+    justifyContent: "space-between",
+  },
+  content: {
+    flex: 1,
   },
   headerRow: {
     flexDirection: "row",
@@ -298,7 +304,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
-    marginTop: "auto",
+    marginTop: 12,
   },
   primaryButton: {
     alignItems: "center",
