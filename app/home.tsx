@@ -1,66 +1,192 @@
 import { router } from "expo-router";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import {
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const primaryScale = useRef(new Animated.Value(1)).current;
+  const secondaryScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeIn, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeIn]);
+
   return (
-    <View style={styles.safeArea}>
+    <Animated.View style={[styles.safeArea, { opacity: fadeIn }]}>
       <View style={styles.container}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.eyebrow}>Your road ahead</Text>
-            <Text style={styles.brand}>RoadSync</Text>
+        <Animated.View
+          style={{
+            opacity: fadeIn,
+            transform: [
+              {
+                translateY: fadeIn.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [14, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.eyebrow}>Your road ahead</Text>
+              <Text style={styles.brand}>RoadSync</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+              onPress={() => router.push("/profile")}
+              style={({ pressed }) => [
+                styles.avatar,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.avatarText}>M</Text>
+            </Pressable>
           </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>M</Text>
+        </Animated.View>
+
+        <Animated.View
+          style={{
+            opacity: fadeIn,
+            transform: [
+              {
+                translateY: fadeIn.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroGreeting}>Good morning, Maya</Text>
+              <Text style={styles.heroTitle}>Ready for the next mile?</Text>
+              <Text style={styles.heroSubtitle}>
+                Plan the route, keep your crew updated, and move together with
+                confidence.
+              </Text>
+            </View>
+            <Image
+              source={require("../assets/images/welcome_image.png")}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroGreeting}>Good morning, Maya</Text>
-            <Text style={styles.heroTitle}>Ready for the next mile?</Text>
-            <Text style={styles.heroSubtitle}>
-              Plan the route, keep your crew updated, and move together with
-              confidence.
-            </Text>
+        <Animated.View
+          style={{
+            opacity: fadeIn,
+            transform: [
+              {
+                translateY: fadeIn.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          <View style={styles.tripCard}>
+            <Text style={styles.tripLabel}>Active trip</Text>
+            <Text style={styles.emptyStateText}>No active trips</Text>
           </View>
-          <Image
-            source={require("../assets/images/welcome_image.png")}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-        </View>
+        </Animated.View>
 
-        <View style={styles.tripCard}>
-          <Text style={styles.tripLabel}>Active trip</Text>
-          <Text style={styles.emptyStateText}>No active trips</Text>
-        </View>
+        <Animated.View
+          style={{
+            opacity: fadeIn,
+            transform: [
+              {
+                translateY: fadeIn.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          <View style={styles.actions}>
+            <Animated.View style={{ transform: [{ scale: primaryScale }] }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push("/create-trip")}
+                onPressIn={() => {
+                  Animated.spring(primaryScale, {
+                    toValue: 0.98,
+                    friction: 8,
+                    tension: 170,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPressOut={() => {
+                  Animated.spring(primaryScale, {
+                    toValue: 1,
+                    friction: 8,
+                    tension: 170,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  {
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>Create trip</Text>
+              </Pressable>
+            </Animated.View>
 
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/create-trip")}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>Create trip</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/join-trip")}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>Join trip</Text>
-          </Pressable>
-        </View>
+            <Animated.View style={{ transform: [{ scale: secondaryScale }] }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push("/join-trip")}
+                onPressIn={() => {
+                  Animated.spring(secondaryScale, {
+                    toValue: 0.98,
+                    friction: 8,
+                    tension: 170,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPressOut={() => {
+                  Animated.spring(secondaryScale, {
+                    toValue: 1,
+                    friction: 8,
+                    tension: 170,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  {
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>Join trip</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

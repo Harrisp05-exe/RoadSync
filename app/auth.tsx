@@ -1,6 +1,8 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -8,11 +10,37 @@ import {
   View,
 } from "react-native";
 
+const STORAGE_KEYS = {
+  email: "roadsync.user.email",
+  username: "roadsync.user.username",
+  profileImage: "roadsync.user.profileImage",
+};
+
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const cardTranslateY = useRef(new Animated.Value(18)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const primaryButtonScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+      Animated.spring(cardTranslateY, {
+        toValue: 0,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [mode, cardOpacity, cardTranslateY]);
 
   const heading = useMemo(
     () => (mode === "login" ? "Welcome back" : "Create account"),
@@ -32,12 +60,45 @@ export default function AuthScreen() {
     [mode],
   );
 
+  const handleSubmit = async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      return;
+    }
+
+    await AsyncStorage.setItem(STORAGE_KEYS.email, trimmedEmail.toLowerCase());
+
+    if (mode === "signup") {
+      const trimmedName = name.trim();
+      if (trimmedName) {
+        await AsyncStorage.setItem(STORAGE_KEYS.username, trimmedName);
+      }
+    } else {
+      const savedName = await AsyncStorage.getItem(STORAGE_KEYS.username);
+      if (!savedName) {
+        const fallbackName = trimmedEmail.split("@")[0];
+        await AsyncStorage.setItem(STORAGE_KEYS.username, fallbackName);
+      }
+    }
+
+    router.replace("/home");
+  };
+
   return (
     <View style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.brand}>RoadSync</Text>
 
-        <View style={styles.card}>
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: cardOpacity,
+              transform: [{ translateY: cardTranslateY }],
+            },
+          ]}
+        >
           <Text style={styles.heading}>{heading}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
 
@@ -113,16 +174,36 @@ export default function AuthScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace("/home")}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>{submitLabel}</Text>
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: primaryButtonScale }] }}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSubmit}
+              onPressIn={() => {
+                Animated.spring(primaryButtonScale, {
+                  toValue: 0.98,
+                  friction: 7,
+                  tension: 170,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              onPressOut={() => {
+                Animated.spring(primaryButtonScale, {
+                  toValue: 1,
+                  friction: 7,
+                  tension: 170,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>{submitLabel}</Text>
+            </Pressable>
+          </Animated.View>
 
           <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
             <Text style={styles.toggleText}>
@@ -131,7 +212,7 @@ export default function AuthScreen() {
                 : "Already have an account? Log in"}
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </View>
   );

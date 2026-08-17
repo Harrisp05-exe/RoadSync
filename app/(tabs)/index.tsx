@@ -1,11 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   FlatList,
-  Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -13,6 +12,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type OnboardingSlide = {
   id: string;
@@ -57,6 +57,24 @@ export default function HomeScreen() {
   const contentWidth = width - 48;
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = useRef<FlatList<OnboardingSlide>>(null);
+  const imageFade = useRef(new Animated.Value(0)).current;
+  const textFade = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(imageFade, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+      Animated.timing(textFade, {
+        toValue: 1,
+        duration: 380,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [activeIndex, imageFade, textFade]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const nextIndex = Math.round(
@@ -99,16 +117,50 @@ export default function HomeScreen() {
           scrollEventThrottle={16}
           renderItem={({ item }) => (
             <View style={[styles.slide, { width: contentWidth }]}>
-              <Image
+              <Animated.Image
                 source={item.image}
-                style={styles.imagePlaceholder}
+                style={[
+                  styles.imagePlaceholder,
+                  {
+                    opacity: imageFade,
+                    transform: [
+                      {
+                        translateY: imageFade.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [18, 0],
+                        }),
+                      },
+                      {
+                        scale: imageFade.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.96, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
                 resizeMode="cover"
               />
             </View>
           )}
         />
 
-        <View style={styles.copy}>
+        <Animated.View
+          style={[
+            styles.copy,
+            {
+              opacity: textFade,
+              transform: [
+                {
+                  translateY: textFade.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View
             style={styles.pagination}
             accessibilityLabel={`Slide ${activeIndex + 1} of ${slides.length}`}
@@ -127,16 +179,39 @@ export default function HomeScreen() {
           <Text style={styles.description}>
             {slides[activeIndex].description}
           </Text>
-        </View>
+        </Animated.View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Get started"
-          onPress={() => router.replace("/auth")}
-          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-        >
-          <Text style={styles.buttonText}>Get Started</Text>
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Get started"
+            onPress={() => router.replace("/auth")}
+            onPressIn={() => {
+              Animated.spring(buttonScale, {
+                toValue: 0.98,
+                friction: 7,
+                tension: 180,
+                useNativeDriver: true,
+              }).start();
+            }}
+            onPressOut={() => {
+              Animated.spring(buttonScale, {
+                toValue: 1,
+                friction: 7,
+                tension: 180,
+                useNativeDriver: true,
+              }).start();
+            }}
+            style={({ pressed }) => [
+              styles.button,
+              {
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={styles.buttonText}>Get Started</Text>
+          </Pressable>
+        </Animated.View>
       </LinearGradient>
     </SafeAreaView>
   );
