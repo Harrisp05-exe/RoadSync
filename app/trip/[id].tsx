@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -12,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
     activeTrip,
     endTrip,
-    getTripByCode,
+    getMockTripByCode,
     leaveTrip,
     type RoadTrip,
     type TripMemberStatus,
@@ -54,7 +55,7 @@ export default function TripDetailsScreen() {
       }
 
       try {
-        const latestTrip = await getTripByCode(tripCode);
+        const latestTrip = getMockTripByCode(tripCode);
         if (isMounted) {
           setTrip(latestTrip ?? activeTrip);
         }
@@ -115,6 +116,18 @@ export default function TripDetailsScreen() {
     setIsRefreshing(false);
   };
 
+  const scheduledLabel =
+    trip.isScheduled && trip.scheduledDate && trip.scheduledTime
+      ? `${new Date(trip.scheduledDate).toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })} • ${new Date(trip.scheduledTime).toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        })}`
+      : "Not scheduled";
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
@@ -122,6 +135,7 @@ export default function TripDetailsScreen() {
           {isRefreshing ? (
             <Text style={styles.refreshing}>Syncing trip updates…</Text>
           ) : null}
+          <Text style={styles.createdLabel}>Trip created successfully</Text>
           <View style={styles.rowBetween}>
             <Text style={styles.code}>Trip Code: {trip.tripCode}</Text>
             <View style={styles.statusBadge}>
@@ -135,6 +149,32 @@ export default function TripDetailsScreen() {
             Hosted by {trip.hostName} • {trip.routeData.destinationName}
           </Text>
           <Text style={styles.meta}>{trip.notes}</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Admin</Text>
+            <Text style={styles.detailValue}>{trip.hostName}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Scheduled</Text>
+            <Text style={styles.detailValue}>{scheduledLabel}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Google Maps</Text>
+            <Text style={styles.detailValue}>
+              {trip.routeData.rawUrl ? "Route added" : "No route added"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.routeButton}
+            onPress={() => undefined}
+          >
+            <Text style={styles.routeButtonText}>View Route</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.copyButton}
+            onPress={() => Clipboard.setStringAsync(trip.tripCode)}
+          >
+            <Text style={styles.copyButtonText}>Copy code</Text>
+          </TouchableOpacity>
         </View>
 
         <RouteMap trip={trip} />
@@ -225,7 +265,7 @@ export default function TripDetailsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#edf2fb",
   },
   page: {
     gap: 16,
@@ -233,10 +273,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   heroCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
+    backgroundColor: "#f8faff",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#dbeafe",
+    borderColor: "#e1e8f7",
     padding: 18,
     gap: 8,
   },
@@ -246,37 +286,89 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   code: {
-    color: "#0f766e",
+    color: "#102d63",
     fontSize: 14,
     fontWeight: "900",
   },
+  createdLabel: {
+    color: "#5d6d8d",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
   statusBadge: {
-    backgroundColor: "#ecfeff",
+    backgroundColor: "#e8efff",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
   statusText: {
-    color: "#0f766e",
+    color: "#102d63",
     fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
   },
   title: {
-    color: "#0f172a",
-    fontSize: 32,
+    color: "#102d63",
+    fontSize: 30,
     fontWeight: "900",
   },
   subtitle: {
-    color: "#475569",
+    color: "#53688d",
     fontSize: 16,
   },
   meta: {
-    color: "#64748b",
+    color: "#7585a4",
     fontSize: 14,
   },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingTop: 4,
+  },
+  detailLabel: {
+    color: "#7585a4",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  detailValue: {
+    flex: 1,
+    color: "#102d63",
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+  copyButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 42,
+    marginTop: 4,
+    borderRadius: 14,
+    backgroundColor: "#102d63",
+  },
+  routeButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#dfe7ff",
+    backgroundColor: "#f3f6ff",
+  },
+  routeButtonText: {
+    color: "#102d63",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  copyButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
   refreshing: {
-    color: "#0f766e",
+    color: "#102d63",
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
@@ -295,7 +387,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#f3f6ff",
     padding: 24,
     minHeight: 260,
   },
@@ -323,9 +415,9 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#e1e8f7",
     padding: 16,
     gap: 10,
   },
@@ -340,23 +432,23 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   statusPill: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f3f6ff",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
+    borderColor: "#dfe7ff",
   },
   statusPillActive: {
-    backgroundColor: "#dcfce7",
-    borderColor: "#22c55e",
+    backgroundColor: "#e8efff",
+    borderColor: "#b9c9ef",
   },
   statusPillText: {
-    color: "#334155",
+    color: "#3b4d73",
     fontWeight: "700",
   },
   statusPillTextActive: {
-    color: "#166534",
+    color: "#102d63",
   },
   stopRow: {
     flexDirection: "row",
@@ -367,7 +459,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 999,
-    backgroundColor: "#0f766e",
+    backgroundColor: "#102d63",
   },
   stopCopy: {
     gap: 2,

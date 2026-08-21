@@ -36,6 +36,9 @@ export type RoadTrip = {
   name: string;
   tripCode: string;
   hostName: string;
+  isScheduled?: boolean;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
   routeData: TripRouteData;
   participants: TripMember[];
   stops: TripStop[];
@@ -51,6 +54,9 @@ export type CreateTripInput = {
   name: string;
   hostName: string;
   mapUrl: string;
+  isScheduled?: boolean;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
 };
 
 const tripStore = new Map<string, RoadTrip>();
@@ -151,6 +157,14 @@ async function getTripFromServer(code: string): Promise<RoadTrip | undefined> {
 export function generateNumericCode(length = 5): string {
   return Array.from({ length }, () =>
     String(Math.floor(Math.random() * 10)),
+  ).join("");
+}
+
+export function generateTripCode(length = 6): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(
+    { length },
+    () => alphabet[Math.floor(Math.random() * alphabet.length)],
   ).join("");
 }
 
@@ -305,6 +319,9 @@ export async function createTrip(input: CreateTripInput): Promise<RoadTrip> {
     name: normalizedName,
     tripCode: generateNumericCode(),
     hostName: normalizedHost,
+    isScheduled: input.isScheduled ?? false,
+    scheduledDate: input.scheduledDate ?? null,
+    scheduledTime: input.scheduledTime ?? null,
     routeData,
     participants: [
       {
@@ -348,6 +365,62 @@ export async function createTrip(input: CreateTripInput): Promise<RoadTrip> {
     tripStore.set(fallbackTrip.tripCode, fallbackTrip);
     return fallbackTrip;
   }
+}
+
+export function createMockTrip(input: CreateTripInput): RoadTrip {
+  const normalizedName = input.name.trim() || "Road Trip";
+  const normalizedHost = input.hostName.trim() || "Current User";
+  const routeData = parseGoogleMapsRoute(input.mapUrl);
+  const baseLocation = routeData.coordinates[0] ?? {
+    latitude: routeData.centerLatitude,
+    longitude: routeData.centerLongitude,
+  };
+  const trip: RoadTrip = {
+    id: `${generateTripId(normalizedName)}-${Date.now()}`,
+    name: normalizedName,
+    tripCode: generateTripCode(),
+    hostName: normalizedHost,
+    isScheduled: input.isScheduled ?? false,
+    scheduledDate: input.scheduledDate ?? null,
+    scheduledTime: input.scheduledTime ?? null,
+    routeData,
+    participants: [
+      {
+        id: `host-${Date.now()}`,
+        name: normalizedHost,
+        role: "Host",
+        status: "Waiting",
+        location: baseLocation,
+        isActive: true,
+        joinedAt: new Date().toISOString(),
+      },
+    ],
+    stops: [
+      {
+        id: "start",
+        name: "Depart",
+        time: input.isScheduled ? "Scheduled" : "Now",
+        status: "current",
+      },
+      {
+        id: "destination",
+        name: routeData.destinationName,
+        time: "Upcoming",
+        status: "upcoming",
+      },
+    ],
+    status: "active",
+    safetyStatus: "All clear",
+    nextStop: routeData.destinationName,
+    notes: `${normalizedHost} created this shared trip.`,
+  };
+
+  tripStore.set(trip.tripCode, trip);
+  return trip;
+}
+
+export function getMockTripByCode(code: string): RoadTrip | undefined {
+  return tripStore.get(code.trim());
 }
 
 export async function getTripByCode(

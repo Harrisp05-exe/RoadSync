@@ -26,7 +26,7 @@ export function Section({ children, style }: ViewProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#edf2fb",
   },
   content: {
     flexGrow: 1,
