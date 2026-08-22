@@ -1,7 +1,10 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Clipboard from "expo-clipboard";
-import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+    Animated,
+    PanResponder,
     ScrollView,
     StyleSheet,
     Text,
@@ -34,6 +37,66 @@ export default function TripDetailsScreen() {
 
   const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sliderWidth, setSliderWidth] = useState(0);
+  const sliderWidthRef = useRef(0);
+  const sliderProgress = useRef(new Animated.Value(0)).current;
+  const navigationStarted = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      navigationStarted.current = false;
+      sliderProgress.setValue(0);
+
+      return () => {
+        sliderProgress.stopAnimation();
+      };
+    }, [sliderProgress]),
+  );
+
+  const goToNavigation = () => {
+    if (navigationStarted.current) {
+      return;
+    }
+
+    navigationStarted.current = true;
+    router.push("/trip/navigation");
+  };
+
+  const sliderResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gesture) => {
+        const trackWidth = Math.max(sliderWidthRef.current - 56, 1);
+        const progress = Math.max(0, Math.min(1, gesture.dx / trackWidth));
+        sliderProgress.setValue(progress);
+
+        if (progress >= 0.99) {
+          goToNavigation();
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const trackWidth = Math.max(sliderWidthRef.current - 56, 1);
+        const progress = Math.max(0, Math.min(1, gesture.dx / trackWidth));
+
+        if (progress >= 0.99) {
+          Animated.spring(sliderProgress, {
+            toValue: 1,
+            useNativeDriver: true,
+          }).start();
+          goToNavigation();
+          return;
+        }
+
+        Animated.spring(sliderProgress, {
+          toValue: 0,
+          friction: 8,
+          tension: 120,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
 
   const tripCode =
     typeof params.tripCode === "string"
@@ -130,134 +193,173 @@ export default function TripDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.page}>
-        <View style={styles.heroCard}>
-          {isRefreshing ? (
-            <Text style={styles.refreshing}>Syncing trip updates…</Text>
-          ) : null}
-          <Text style={styles.createdLabel}>Trip created successfully</Text>
-          <View style={styles.rowBetween}>
-            <Text style={styles.code}>Trip Code: {trip.tripCode}</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>
-                {trip.status === "active" ? "Live" : "Ended"}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.title}>{trip.name}</Text>
-          <Text style={styles.subtitle}>
-            Hosted by {trip.hostName} • {trip.routeData.destinationName}
-          </Text>
-          <Text style={styles.meta}>{trip.notes}</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Admin</Text>
-            <Text style={styles.detailValue}>{trip.hostName}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Scheduled</Text>
-            <Text style={styles.detailValue}>{scheduledLabel}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Google Maps</Text>
-            <Text style={styles.detailValue}>
-              {trip.routeData.rawUrl ? "Route added" : "No route added"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.routeButton}
-            onPress={() => undefined}
-          >
-            <Text style={styles.routeButtonText}>View Route</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.copyButton}
-            onPress={() => Clipboard.setStringAsync(trip.tripCode)}
-          >
-            <Text style={styles.copyButtonText}>Copy code</Text>
-          </TouchableOpacity>
-        </View>
-
-        <RouteMap trip={trip} />
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>My status</Text>
-          <View style={styles.statusRow}>
-            {STATUS_OPTIONS.map((status) => {
-              const isActive = currentParticipant?.status === status;
-              return (
-                <TouchableOpacity
-                  key={status}
-                  style={[
-                    styles.statusPill,
-                    isActive ? styles.statusPillActive : undefined,
-                  ]}
-                  onPress={() => handleStatusChange(status)}
-                >
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      isActive ? styles.statusPillTextActive : undefined,
-                    ]}
-                  >
-                    {status}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Trip flow</Text>
-          {trip.stops.map((stop) => (
-            <View key={stop.id} style={styles.stopRow}>
-              <View style={styles.stopDot} />
-              <View style={styles.stopCopy}>
-                <Text style={styles.stopTitle}>{stop.name}</Text>
-                <Text style={styles.stopMeta}>{stop.time}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Travelers</Text>
-          {trip.participants.map((participant) => (
-            <View key={participant.id} style={styles.memberRow}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberAvatarText}>
-                  {participant.name[0]}
+      <View style={styles.screen}>
+        <ScrollView contentContainerStyle={styles.page}>
+          <View style={styles.heroCard}>
+            {isRefreshing ? (
+              <Text style={styles.refreshing}>Syncing trip updates…</Text>
+            ) : null}
+            <Text style={styles.createdLabel}>Trip created successfully</Text>
+            <View style={styles.rowBetween}>
+              <Text style={styles.code}>Trip Code: {trip.tripCode}</Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>
+                  {trip.status === "active" ? "Live" : "Ended"}
                 </Text>
               </View>
-              <View style={styles.memberCopy}>
-                <Text style={styles.memberName}>{participant.name}</Text>
-                <Text style={styles.memberMeta}>{participant.role}</Text>
-              </View>
-              <Text style={styles.memberStatus}>{participant.status}</Text>
             </View>
-          ))}
-        </View>
+            <Text style={styles.title}>{trip.name}</Text>
+            <Text style={styles.subtitle}>
+              Hosted by {trip.hostName} • {trip.routeData.destinationName}
+            </Text>
+            <Text style={styles.meta}>{trip.notes}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Admin</Text>
+              <Text style={styles.detailValue}>{trip.hostName}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Scheduled</Text>
+              <Text style={styles.detailValue}>{scheduledLabel}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Google Maps</Text>
+              <Text style={styles.detailValue}>
+                {trip.routeData.rawUrl ? "Route added" : "No route added"}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.routeButton}
+              onPress={() => undefined}
+            >
+              <Text style={styles.routeButtonText}>View Route</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.copyButton}
+              onPress={() => Clipboard.setStringAsync(trip.tripCode)}
+            >
+              <Text style={styles.copyButtonText}>Copy code</Text>
+            </TouchableOpacity>
+          </View>
 
+          <RouteMap trip={trip} />
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>My status</Text>
+            <View style={styles.statusRow}>
+              {STATUS_OPTIONS.map((status) => {
+                const isActive = currentParticipant?.status === status;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.statusPill,
+                      isActive ? styles.statusPillActive : undefined,
+                    ]}
+                    onPress={() => handleStatusChange(status)}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        isActive ? styles.statusPillTextActive : undefined,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Trip flow</Text>
+            {trip.stops.map((stop) => (
+              <View key={stop.id} style={styles.stopRow}>
+                <View style={styles.stopDot} />
+                <View style={styles.stopCopy}>
+                  <Text style={styles.stopTitle}>{stop.name}</Text>
+                  <Text style={styles.stopMeta}>{stop.time}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Travelers</Text>
+            {trip.participants.map((participant) => (
+              <View key={participant.id} style={styles.memberRow}>
+                <View style={styles.memberAvatar}>
+                  <Text style={styles.memberAvatarText}>
+                    {participant.name[0]}
+                  </Text>
+                </View>
+                <View style={styles.memberCopy}>
+                  <Text style={styles.memberName}>{participant.name}</Text>
+                  <Text style={styles.memberMeta}>{participant.role}</Text>
+                </View>
+                <Text style={styles.memberStatus}>{participant.status}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
         {trip.status === "active" ? (
-          <View style={styles.actionsRow}>
-            {isHost ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleEndTrip}
+          <View style={styles.actionsFooter}>
+            <View style={styles.actionsRow}>
+              <View
+                style={styles.startSlider}
+                onLayout={(event) => {
+                  const width = event.nativeEvent.layout.width;
+                  sliderWidthRef.current = width;
+                  setSliderWidth(width);
+                }}
               >
-                <Text style={styles.secondaryButtonText}>End trip</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleLeaveTrip}
-              >
-                <Text style={styles.secondaryButtonText}>Leave trip</Text>
-              </TouchableOpacity>
-            )}
+                <View
+                  style={styles.sliderTrack}
+                  {...sliderResponder.panHandlers}
+                >
+                  <Text style={styles.sliderHint}>Start trip</Text>
+                  <Animated.View
+                    style={[
+                      styles.sliderThumb,
+                      {
+                        transform: [
+                          {
+                            translateX: sliderProgress.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, Math.max(sliderWidth - 56, 1)],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="arrow-forward"
+                      size={25}
+                      color="#ffffff"
+                    />
+                  </Animated.View>
+                </View>
+              </View>
+              {isHost ? (
+                <TouchableOpacity
+                  style={styles.endTripButton}
+                  onPress={handleEndTrip}
+                >
+                  <Text style={styles.secondaryButtonText}>End trip</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleLeaveTrip}
+                >
+                  <Text style={styles.secondaryButtonText}>Leave trip</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         ) : null}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -267,10 +369,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#edf2fb",
   },
+  screen: {
+    flex: 1,
+  },
   page: {
     gap: 16,
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: 24,
+  },
+  actionsFooter: {
+    padding: 16,
+    paddingBottom: 18,
+    backgroundColor: "#edf2fb",
+    borderTopWidth: 1,
+    borderTopColor: "#dfe7ff",
   },
   heroCard: {
     backgroundColor: "#f8faff",
@@ -511,15 +623,55 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    gap: 12,
+  },
+  startSlider: {
+    flex: 1,
+  },
+  sliderTrack: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#dff3e6",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  sliderHint: {
+    color: "#6d927b",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  sliderThumb: {
+    position: "absolute",
+    left: 4,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "#236b4b",
   },
   secondaryButton: {
+    minWidth: 108,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#cbd5e1",
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  endTripButton: {
+    minWidth: 108,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#c2414c",
+    borderRadius: 16,
+    paddingHorizontal: 14,
   },
   secondaryButtonText: {
     color: "#0f172a",
