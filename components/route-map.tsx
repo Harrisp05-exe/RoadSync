@@ -7,6 +7,7 @@ import RouteMapWeb from "./route-map.web";
 export type RouteMapProps = {
   trip: RoadTrip;
   mapHeight?: number;
+  fullScreen?: boolean;
 };
 
 const RouteMapComponent = Platform.OS === "web" ? RouteMapWeb : RouteMapNative;

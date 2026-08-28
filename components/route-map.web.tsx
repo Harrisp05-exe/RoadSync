@@ -4,7 +4,7 @@ import {
     Text,
     TouchableOpacity,
     View,
-  type DimensionValue,
+    type DimensionValue,
 } from "react-native";
 
 import type { RoadTrip } from "@/app-data/roadsync";
@@ -12,9 +12,14 @@ import type { RoadTrip } from "@/app-data/roadsync";
 type RouteMapProps = {
   trip: RoadTrip;
   mapHeight?: number;
+  fullScreen?: boolean;
 };
 
-export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
+export default function RouteMap({
+  trip,
+  mapHeight = 260,
+  fullScreen = false,
+}: RouteMapProps) {
   const coordinates = trip.routeData.coordinates;
   const latitudes = coordinates.map((coordinate) => coordinate.latitude);
   const longitudes = coordinates.map((coordinate) => coordinate.longitude);
@@ -24,7 +29,10 @@ export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
   const maxLongitude = Math.max(...longitudes, trip.routeData.centerLongitude);
   const latitudeRange = Math.max(maxLatitude - minLatitude, 0.01);
   const longitudeRange = Math.max(maxLongitude - minLongitude, 0.01);
-  const getMarkerPosition = (latitude: number, longitude: number): {
+  const getMarkerPosition = (
+    latitude: number,
+    longitude: number,
+  ): {
     left: DimensionValue;
     top: DimensionValue;
   } => ({
@@ -33,8 +41,20 @@ export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
   });
 
   return (
-    <View style={[styles.mapFallback, { height: mapHeight }]}>
-      <View style={[styles.previewCanvas, { height: Math.max(mapHeight - 86, 170) }]}>
+    <View
+      style={[
+        styles.mapFallback,
+        { height: mapHeight },
+        fullScreen && styles.fullScreen,
+      ]}
+    >
+      <View
+        style={[
+          styles.previewCanvas,
+          { height: fullScreen ? mapHeight : Math.max(mapHeight - 86, 170) },
+          fullScreen && styles.fullScreenCanvas,
+        ]}
+      >
         <View style={[styles.gridLine, styles.gridLineHorizontalOne]} />
         <View style={[styles.gridLine, styles.gridLineHorizontalTwo]} />
         <View style={[styles.gridLine, styles.gridLineVerticalOne]} />
@@ -50,8 +70,10 @@ export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
                 nextCoordinate.latitude,
                 nextCoordinate.longitude,
               );
-              const deltaX = parseFloat(String(end.left)) - parseFloat(String(start.left));
-              const deltaY = parseFloat(String(end.top)) - parseFloat(String(start.top));
+              const deltaX =
+                parseFloat(String(end.left)) - parseFloat(String(start.left));
+              const deltaY =
+                parseFloat(String(end.top)) - parseFloat(String(start.top));
               const length = Math.sqrt(deltaX ** 2 + deltaY ** 2);
               const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 
@@ -95,14 +117,16 @@ export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
           </Text>
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.openMapButton}
-        onPress={() =>
-          trip.routeData.rawUrl && Linking.openURL(trip.routeData.rawUrl)
-        }
-      >
-        <Text style={styles.openMapButtonText}>Open in Google Maps</Text>
-      </TouchableOpacity>
+      {!fullScreen ? (
+        <TouchableOpacity
+          style={styles.openMapButton}
+          onPress={() =>
+            trip.routeData.rawUrl && Linking.openURL(trip.routeData.rawUrl)
+          }
+        >
+          <Text style={styles.openMapButtonText}>Open in Google Maps</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -119,6 +143,11 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 8,
   },
+  fullScreen: {
+    borderRadius: 0,
+    borderWidth: 0,
+    padding: 0,
+  },
   previewCanvas: {
     width: "100%",
     height: 170,
@@ -126,6 +155,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#e8efff",
     position: "relative",
+  },
+  fullScreenCanvas: {
+    borderRadius: 0,
   },
   gridLine: {
     position: "absolute",

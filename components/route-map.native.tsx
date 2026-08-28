@@ -6,9 +6,14 @@ import type { RoadTrip } from "@/app-data/roadsync";
 type RouteMapProps = {
   trip: RoadTrip;
   mapHeight?: number;
+  fullScreen?: boolean;
 };
 
-export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
+export default function RouteMap({
+  trip,
+  mapHeight = 260,
+  fullScreen = false,
+}: RouteMapProps) {
   const region = {
     latitude: trip.routeData.centerLatitude,
     longitude: trip.routeData.centerLongitude,
@@ -17,7 +22,13 @@ export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
   };
 
   return (
-    <View style={[styles.mapWrap, { height: mapHeight }]}>
+    <View
+      style={[
+        styles.mapWrap,
+        { height: mapHeight },
+        fullScreen && styles.fullScreen,
+      ]}
+    >
       <MapView style={styles.mapView} initialRegion={region} showsUserLocation>
         {trip.routeData.coordinates.length > 1 ? (
           <Polyline
@@ -49,6 +60,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#dbeafe",
+  },
+  fullScreen: {
+    borderRadius: 0,
+    borderWidth: 0,
   },
   mapView: {
     flex: 1,
