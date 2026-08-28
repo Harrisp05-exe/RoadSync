@@ -4,15 +4,17 @@ import {
     Text,
     TouchableOpacity,
     View,
+  type DimensionValue,
 } from "react-native";
 
 import type { RoadTrip } from "@/app-data/roadsync";
 
 type RouteMapProps = {
   trip: RoadTrip;
+  mapHeight?: number;
 };
 
-export default function RouteMap({ trip }: RouteMapProps) {
+export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
   const coordinates = trip.routeData.coordinates;
   const latitudes = coordinates.map((coordinate) => coordinate.latitude);
   const longitudes = coordinates.map((coordinate) => coordinate.longitude);
@@ -22,14 +24,17 @@ export default function RouteMap({ trip }: RouteMapProps) {
   const maxLongitude = Math.max(...longitudes, trip.routeData.centerLongitude);
   const latitudeRange = Math.max(maxLatitude - minLatitude, 0.01);
   const longitudeRange = Math.max(maxLongitude - minLongitude, 0.01);
-  const getMarkerPosition = (latitude: number, longitude: number) => ({
-    left: `${12 + ((longitude - minLongitude) / longitudeRange) * 76}%`,
-    top: `${12 + ((maxLatitude - latitude) / latitudeRange) * 70}%`,
+  const getMarkerPosition = (latitude: number, longitude: number): {
+    left: DimensionValue;
+    top: DimensionValue;
+  } => ({
+    left: `${12 + ((longitude - minLongitude) / longitudeRange) * 76}%` as DimensionValue,
+    top: `${12 + ((maxLatitude - latitude) / latitudeRange) * 70}%` as DimensionValue,
   });
 
   return (
-    <View style={styles.mapFallback}>
-      <View style={styles.previewCanvas}>
+    <View style={[styles.mapFallback, { height: mapHeight }]}>
+      <View style={[styles.previewCanvas, { height: Math.max(mapHeight - 86, 170) }]}>
         <View style={[styles.gridLine, styles.gridLineHorizontalOne]} />
         <View style={[styles.gridLine, styles.gridLineHorizontalTwo]} />
         <View style={[styles.gridLine, styles.gridLineVerticalOne]} />
@@ -45,8 +50,8 @@ export default function RouteMap({ trip }: RouteMapProps) {
                 nextCoordinate.latitude,
                 nextCoordinate.longitude,
               );
-              const deltaX = parseFloat(end.left) - parseFloat(start.left);
-              const deltaY = parseFloat(end.top) - parseFloat(start.top);
+              const deltaX = parseFloat(String(end.left)) - parseFloat(String(start.left));
+              const deltaY = parseFloat(String(end.top)) - parseFloat(String(start.top));
               const length = Math.sqrt(deltaX ** 2 + deltaY ** 2);
               const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 

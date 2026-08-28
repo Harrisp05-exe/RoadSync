@@ -422,7 +422,7 @@ export default function CreateTripScreen() {
                   <TimeWheel
                     values={["AM", "PM"]}
                     selectedValue={timeDraft.period}
-                    formatValue={(value) => value}
+                    formatValue={(value) => String(value)}
                     onSelect={(value) => handleTimeDraftChange("period", value)}
                   />
                 </View>

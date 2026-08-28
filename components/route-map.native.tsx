@@ -5,9 +5,10 @@ import type { RoadTrip } from "@/app-data/roadsync";
 
 type RouteMapProps = {
   trip: RoadTrip;
+  mapHeight?: number;
 };
 
-export default function RouteMap({ trip }: RouteMapProps) {
+export default function RouteMap({ trip, mapHeight = 260 }: RouteMapProps) {
   const region = {
     latitude: trip.routeData.centerLatitude,
     longitude: trip.routeData.centerLongitude,
@@ -16,7 +17,7 @@ export default function RouteMap({ trip }: RouteMapProps) {
   };
 
   return (
-    <View style={styles.mapWrap}>
+    <View style={[styles.mapWrap, { height: mapHeight }]}>
       <MapView style={styles.mapView} initialRegion={region} showsUserLocation>
         {trip.routeData.coordinates.length > 1 ? (
           <Polyline

@@ -1,4 +1,4 @@
-export type TripMemberStatus = "Waiting" | "Need Help" | "Driving";
+export type TripMemberStatus = "Waiting" | "SOS" | "Driving";
 
 export type TripLocation = {
   latitude: number;

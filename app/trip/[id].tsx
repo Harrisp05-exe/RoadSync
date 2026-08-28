@@ -24,7 +24,7 @@ import {
 } from "@/app-data/roadsync";
 import RouteMap from "../../components/route-map";
 
-const STATUS_OPTIONS: TripMemberStatus[] = ["Waiting", "Need Help", "Driving"];
+const STATUS_OPTIONS: TripMemberStatus[] = ["Waiting", "Driving", "SOS"];
 
 export default function TripDetailsScreen() {
   const params = useLocalSearchParams<{
@@ -59,7 +59,15 @@ export default function TripDetailsScreen() {
     }
 
     navigationStarted.current = true;
-    router.push("/trip/navigation");
+    router.push({
+      pathname: "/trip/navigation",
+      params: {
+        id: trip?.id,
+        tripCode: trip?.tripCode,
+        participantId,
+        name: trip?.name,
+      },
+    });
   };
 
   const sliderResponder = useRef(
