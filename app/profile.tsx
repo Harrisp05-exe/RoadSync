@@ -23,8 +23,10 @@ export default function ProfileScreen() {
   const [username, setUsername] = useState("Maya Smith");
   const [draftUsername, setDraftUsername] = useState("Maya Smith");
   const [registeredEmail, setRegisteredEmail] = useState("No email registered");
+  const [draftEmail, setDraftEmail] = useState("No email registered");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const saveToastAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function ProfileScreen() {
 
       if (savedEmail) {
         setRegisteredEmail(savedEmail);
+        setDraftEmail(savedEmail);
       }
 
       if (savedUsername) {
@@ -105,14 +108,28 @@ export default function ProfileScreen() {
     setDraftUsername(nextUsername);
   };
 
-  const handleSaveUsername = async () => {
+  const handleEmailChange = (nextEmail: string) => {
+    setDraftEmail(nextEmail);
+  };
+
+  const handleSaveChanges = async () => {
     const trimmedUsername = draftUsername.trim();
     const nextUsername = trimmedUsername || "Maya Smith";
+    const trimmedEmail = draftEmail.trim();
+    const nextEmail = trimmedEmail || registeredEmail;
 
     setUsername(nextUsername);
-    setDraftUsername(nextUsername);
+    setRegisteredEmail(nextEmail);
     await AsyncStorage.setItem(STORAGE_KEYS.username, nextUsername);
+    await AsyncStorage.setItem(STORAGE_KEYS.email, nextEmail);
     setShowSavedToast(true);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setDraftUsername(username);
+    setDraftEmail(registeredEmail);
+    setIsEditing(false);
   };
 
   const handleLogout = async () => {
@@ -180,31 +197,75 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.formSection}>
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            value={draftUsername}
-            onChangeText={handleUsernameChange}
-            placeholder="Enter your username"
-            placeholderTextColor="#8997b1"
-            style={styles.input}
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleSaveUsername}
-            style={({ pressed }) => [
-              styles.saveButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.saveButtonText}>Save changes</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.formSection}>
-          <Text style={styles.label}>Registered email</Text>
-          <View style={styles.emailBox}>
-            <Text style={styles.emailText}>{registeredEmail}</Text>
-          </View>
+          {isEditing ? (
+            <>
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                value={draftUsername}
+                onChangeText={handleUsernameChange}
+                placeholder="Enter your username"
+                placeholderTextColor="#8997b1"
+                style={styles.input}
+              />
+              {registeredEmail !== "No email registered" && (
+                <>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    value={draftEmail}
+                    onChangeText={handleEmailChange}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#8997b1"
+                    style={styles.input}
+                  />
+                </>
+              )}
+              <View style={styles.buttonGroup}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleSaveChanges}
+                  style={({ pressed }) => [
+                    styles.saveButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.saveButtonText}>Save changes</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleCancel}
+                  style={({ pressed }) => [
+                    styles.cancelButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.profileField}>
+                <Text style={styles.label}>Username</Text>
+                <Text style={styles.fieldValue}>{username}</Text>
+              </View>
+              {registeredEmail !== "No email registered" && (
+                <View style={styles.profileField}>
+                  <Text style={styles.label}>Email</Text>
+                  <Text style={styles.fieldValue}>{registeredEmail}</Text>
+                </View>
+              )}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsEditing(true)}
+                style={({ pressed }) => [
+                  styles.editButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.editButtonText}>Edit</Text>
+              </Pressable>
+            </>
+          )}
         </View>
 
         <View style={styles.spacer} />
@@ -347,16 +408,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
   },
+  profileField: {
+    marginBottom: 16,
+  },
+  fieldValue: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dfe7ff",
+    borderRadius: 14,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#102d63",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  editButton: {
+    marginTop: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+    backgroundColor: "#102d63",
+    borderRadius: 14,
+  },
+  editButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  buttonGroup: {
+    gap: 10,
+    marginTop: 12,
+  },
+  cancelButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+    backgroundColor: "#dfe7ff",
+    borderRadius: 14,
+  },
+  cancelButtonText: {
+    color: "#102d63",
+    fontSize: 14,
+    fontWeight: "800",
+  },
   toast: {
     position: "absolute",
     left: 16,
     right: 16,
     top: 12,
-    backgroundColor: "#102d63",
+    backgroundColor: "#10b981",
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    shadowColor: "#102d63",
+    shadowColor: "#10b981",
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },

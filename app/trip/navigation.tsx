@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
     activeTrip,
+    endTrip,
     getTripByCode,
     type RoadTrip,
     type TripMemberStatus,
@@ -133,6 +134,13 @@ export default function NavigationScreen() {
     );
     if (updatedTrip) setTrip(updatedTrip);
     setIsUpdating(false);
+  };
+
+  const handleEndTrip = async () => {
+    setIsUpdating(true);
+    await endTrip(trip.tripCode);
+    setIsUpdating(false);
+    router.back();
   };
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -267,6 +275,15 @@ export default function NavigationScreen() {
                 })}
               </View>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="End trip"
+              onPress={() => void handleEndTrip()}
+              disabled={isUpdating}
+              style={[styles.endTripButton, isUpdating && styles.buttonDisabled]}
+            >
+              <Text style={styles.endTripButtonText}>End trip</Text>
+            </Pressable>
           </View>
         </Animated.View>
       </View>
@@ -460,6 +477,23 @@ const styles = StyleSheet.create({
   statusOptionSos: { backgroundColor: "#c84335" },
   statusOptionText: { color: "#53688d", fontSize: 12, fontWeight: "900" },
   statusOptionTextSelected: { color: "#ffffff" },
+  endTripButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#c2414c",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  endTripButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   loadingText: { color: "#53688d", fontSize: 14, fontWeight: "700" },
 });

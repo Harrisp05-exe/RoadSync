@@ -37,9 +37,12 @@ export default function TripDetailsScreen() {
 
   const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRouteMap, setShowRouteMap] = useState(false);
+  const [showCopyToast, setShowCopyToast] = useState(false);
   const [sliderWidth, setSliderWidth] = useState(0);
   const sliderWidthRef = useRef(0);
   const sliderProgress = useRef(new Animated.Value(0)).current;
+  const copyToastAnim = useRef(new Animated.Value(0)).current;
   const navigationStarted = useRef(false);
 
   useFocusEffect(
@@ -52,6 +55,34 @@ export default function TripDetailsScreen() {
       };
     }, [sliderProgress]),
   );
+
+  useEffect(() => {
+    if (!showCopyToast) {
+      return;
+    }
+
+    const animation = Animated.sequence([
+      Animated.timing(copyToastAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.timing(copyToastAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start(() => {
+      setShowCopyToast(false);
+    });
+
+    return () => {
+      animation.stop();
+    };
+  }, [showCopyToast, copyToastAnim]);
 
   const goToNavigation = () => {
     if (navigationStarted.current) {
@@ -202,6 +233,27 @@ export default function TripDetailsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
+        {showCopyToast ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.toast,
+              {
+                opacity: copyToastAnim,
+                transform: [
+                  {
+                    translateY: copyToastAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.toastText}>Code copied</Text>
+          </Animated.View>
+        ) : null}
         <ScrollView contentContainerStyle={styles.page}>
           <View style={styles.heroCard}>
             {isRefreshing ? (
@@ -237,19 +289,24 @@ export default function TripDetailsScreen() {
             </View>
             <TouchableOpacity
               style={styles.routeButton}
-              onPress={() => undefined}
+              onPress={() => setShowRouteMap(!showRouteMap)}
             >
-              <Text style={styles.routeButtonText}>View Route</Text>
+              <Text style={styles.routeButtonText}>
+                {showRouteMap ? "Hide Route" : "View Route"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.copyButton}
-              onPress={() => Clipboard.setStringAsync(trip.tripCode)}
+              onPress={async () => {
+                await Clipboard.setStringAsync(trip.tripCode);
+                setShowCopyToast(true);
+              }}
             >
               <Text style={styles.copyButtonText}>Copy code</Text>
             </TouchableOpacity>
           </View>
 
-          <RouteMap trip={trip} />
+          {showRouteMap && <RouteMap trip={trip} />}
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>My status</Text>
@@ -684,5 +741,27 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#0f172a",
     fontWeight: "700",
+  },
+  toast: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    top: 12,
+    backgroundColor: "#10b981",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: "#10b981",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+    zIndex: 10,
+  },
+  toastText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

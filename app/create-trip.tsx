@@ -178,7 +178,11 @@ export default function CreateTripScreen() {
       setError("Enter a trip name to continue.");
       return;
     }
-    if (trimmedMapsLink && !/^https?:\/\/[^\s]+$/i.test(trimmedMapsLink)) {
+    if (!trimmedMapsLink) {
+      setError("Enter a Google Maps link to continue.");
+      return;
+    }
+    if (!/^https?:\/\/[^\s]+$/i.test(trimmedMapsLink)) {
       setError("Enter a valid Google Maps URL, including https://.");
       return;
     }
