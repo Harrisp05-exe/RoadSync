@@ -1,7 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loginUser, registerUser } from "@/firebase-auth";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     Animated,
     Pressable,
     StyleSheet,
@@ -10,17 +11,13 @@ import {
     View,
 } from "react-native";
 
-const STORAGE_KEYS = {
-  email: "roadsync.user.email",
-  username: "roadsync.user.username",
-  profileImage: "roadsync.user.profileImage",
-};
-
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const cardTranslateY = useRef(new Animated.Value(18)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -62,27 +59,47 @@ export default function AuthScreen() {
 
   const handleSubmit = async () => {
     const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    setError("");
 
     if (!trimmedEmail) {
+      setError("Please enter your email.");
       return;
     }
 
-    await AsyncStorage.setItem(STORAGE_KEYS.email, trimmedEmail.toLowerCase());
+    if (!trimmedPassword) {
+      setError("Please enter your password.");
+      return;
+    }
 
     if (mode === "signup") {
       const trimmedName = name.trim();
-      if (trimmedName) {
-        await AsyncStorage.setItem(STORAGE_KEYS.username, trimmedName);
+      if (!trimmedName) {
+        setError("Please enter your name.");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await registerUser(trimmedEmail, trimmedPassword, trimmedName);
+        router.replace("/home");
+      } catch (err: any) {
+        setError(err.message || "Failed to create account. Please try again.");
+      } finally {
+        setLoading(false);
       }
     } else {
-      const savedName = await AsyncStorage.getItem(STORAGE_KEYS.username);
-      if (!savedName) {
-        const fallbackName = trimmedEmail.split("@")[0];
-        await AsyncStorage.setItem(STORAGE_KEYS.username, fallbackName);
+      setLoading(true);
+      try {
+        await loginUser(trimmedEmail, trimmedPassword);
+        router.replace("/home");
+      } catch (err: any) {
+        setError(err.message || "Invalid email or password.");
+      } finally {
+        setLoading(false);
       }
     }
-
-    router.replace("/home");
   };
 
   return (
@@ -140,6 +157,12 @@ export default function AuthScreen() {
             />
           </View>
 
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or continue with</Text>
@@ -178,6 +201,7 @@ export default function AuthScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={handleSubmit}
+              disabled={loading}
               onPressIn={() => {
                 Animated.spring(primaryButtonScale, {
                   toValue: 0.98,
@@ -197,11 +221,15 @@ export default function AuthScreen() {
               style={({ pressed }) => [
                 styles.primaryButton,
                 {
-                  opacity: pressed ? 0.9 : 1,
+                  opacity: loading ? 0.6 : pressed ? 0.9 : 1,
                 },
               ]}
             >
-              <Text style={styles.primaryButtonText}>{submitLabel}</Text>
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>{submitLabel}</Text>
+              )}
             </Pressable>
           </Animated.View>
 
@@ -342,6 +370,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     marginTop: 16,
+  },
+  errorContainer: {
+    backgroundColor: "#fee2e2",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    padding: 12,
+    marginVertical: 12,
+  },
+  errorText: {
+    color: "#b42318",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
   },
   pressed: {
     opacity: 0.8,

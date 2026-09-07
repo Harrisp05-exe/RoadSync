@@ -280,7 +280,10 @@ export default function NavigationScreen() {
               accessibilityLabel="End trip"
               onPress={() => void handleEndTrip()}
               disabled={isUpdating}
-              style={[styles.endTripButton, isUpdating && styles.buttonDisabled]}
+              style={[
+                styles.endTripButton,
+                isUpdating && styles.buttonDisabled,
+              ]}
             >
               <Text style={styles.endTripButtonText}>End trip</Text>
             </Pressable>
