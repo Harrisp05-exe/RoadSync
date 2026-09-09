@@ -1,5 +1,9 @@
 # Firebase Backend Setup for RoadSync
 
+RoadSync already includes Firebase integration in `firebase-config.ts`, `firebase-auth.ts`, and `firebase-service.ts`. Use this guide to configure a Firebase project and verify the existing integration; do not create duplicate files unless the implementation has been removed.
+
+The current app uses Firebase Authentication for email/password accounts and Firestore for user profiles. Trip screens currently use the local API described in the main [README](README.md), so the trip service functions in this file are available groundwork rather than the active trip data path.
+
 ## Phase 1: Create Firebase Project
 
 ### Step 1: Create Firebase Project
