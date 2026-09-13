@@ -11,7 +11,7 @@ import {
     View,
 } from "react-native";
 
-import { createMockTrip } from "@/app-data/roadsync";
+import { createTrip } from "@/app-data/roadsync";
 import { ActionButton } from "@/components/roadsync/action-button";
 import { RoadSyncScreen, Section } from "@/components/roadsync/screen";
 
@@ -171,7 +171,7 @@ export default function CreateTripScreen() {
     setPickerMode(null);
   };
 
-  const handleCreateTrip = () => {
+  const handleCreateTrip = async () => {
     const trimmedName = tripName.trim();
     const trimmedMapsLink = mapsLink.trim();
     if (!trimmedName) {
@@ -205,7 +205,7 @@ export default function CreateTripScreen() {
     }
 
     setError("");
-    const trip = createMockTrip({
+    const trip = await createTrip({
       name: trimmedName,
       hostName,
       mapUrl: trimmedMapsLink,

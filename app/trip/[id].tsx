@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
     activeTrip,
     endTrip,
-    getMockTripByCode,
+    getTripByCode,
     leaveTrip,
     type RoadTrip,
     type TripMemberStatus,
@@ -157,7 +157,7 @@ export default function TripDetailsScreen() {
       }
 
       try {
-        const latestTrip = getMockTripByCode(tripCode);
+        const latestTrip = await getTripByCode(tripCode);
         if (isMounted) {
           setTrip(latestTrip ?? activeTrip);
         }

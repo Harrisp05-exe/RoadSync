@@ -1,4 +1,74 @@
 {
+  "44712": {
+    "id": "shared-join-test-1789321920048",
+    "name": "Shared Join Test 1789321920048",
+    "tripCode": "44712",
+    "hostName": "Host One",
+    "routeData": {
+      "rawUrl": "https://maps.google.com/?daddr=Asheville%2C%20NC",
+      "destinationName": "Asheville, NC",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789321920498",
+        "name": "Host One",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-13T17:52:00.499Z"
+      },
+      {
+        "id": "traveler-1789321920653",
+        "name": "Traveler One",
+        "role": "Traveler",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-13T17:52:00.653Z"
+      },
+      {
+        "id": "traveler-1789321920662",
+        "name": "Traveler Two",
+        "role": "Traveler",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-13T17:52:00.662Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Asheville, NC",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Asheville, NC",
+    "notes": "Host One created this shared trip."
+  },
   "09748": {
     "id": "test",
     "name": "Test",
