@@ -394,39 +394,42 @@ export default function TripDetailsScreen() {
                 <View style={styles.startSliderColumn}>
                   <View
                     style={styles.startSlider}
-                  onLayout={(event) => {
-                    const width = event.nativeEvent.layout.width;
-                    sliderWidthRef.current = width;
-                    setSliderWidth(width);
-                  }}
+                    onLayout={(event) => {
+                      const width = event.nativeEvent.layout.width;
+                      sliderWidthRef.current = width;
+                      setSliderWidth(width);
+                    }}
                   >
-                  <View
-                    style={styles.sliderTrack}
-                    {...sliderResponder.panHandlers}
-                  >
-                    <Text style={styles.sliderHint}>Start trip</Text>
-                    <Animated.View
-                      style={[
-                        styles.sliderThumb,
-                        {
-                          transform: [
-                            {
-                              translateX: sliderProgress.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0, Math.max(sliderWidth - 56, 1)],
-                              }),
-                            },
-                          ],
-                        },
-                      ]}
+                    <View
+                      style={styles.sliderTrack}
+                      {...sliderResponder.panHandlers}
                     >
-                      <MaterialIcons
-                        name="arrow-forward"
-                        size={25}
-                        color="#ffffff"
-                      />
-                    </Animated.View>
-                  </View>
+                      <Text style={styles.sliderHint}>Start trip</Text>
+                      <Animated.View
+                        style={[
+                          styles.sliderThumb,
+                          {
+                            transform: [
+                              {
+                                translateX: sliderProgress.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [
+                                    0,
+                                    Math.max(sliderWidth - 56, 1),
+                                  ],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name="arrow-forward"
+                          size={25}
+                          color="#ffffff"
+                        />
+                      </Animated.View>
+                    </View>
                   </View>
                   {startError ? (
                     <Text style={styles.startError}>{startError}</Text>
