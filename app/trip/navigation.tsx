@@ -16,12 +16,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
     activeTrip,
     endTrip,
-    getTripByCode,
     type RoadTrip,
     type TripMemberStatus,
     updateParticipantStatus,
 } from "@/app-data/roadsync";
 import RouteMap from "@/components/route-map";
+import { subscribeToSharedTrip } from "@/firebase-trip-service";
 
 const STATUS_OPTIONS: {
   value: TripMemberStatus;
@@ -35,17 +35,20 @@ const STATUS_OPTIONS: {
 
 export default function NavigationScreen() {
   const params = useLocalSearchParams<{
+    id?: string;
     tripCode?: string;
     participantId?: string;
+    isHost?: string;
   }>();
   const { height } = useWindowDimensions();
   const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
   const [isUpdating, setIsUpdating] = useState(false);
-  const tripCode = typeof params.tripCode === "string" ? params.tripCode : "";
+  const tripId = typeof params.id === "string" ? params.id : "";
   const participantId =
     typeof params.participantId === "string"
       ? params.participantId
       : (trip?.participants[0]?.id ?? "");
+  const isHost = params.isHost === "true";
   const sheetHeight = Math.min(height * 0.72, 590);
   const collapsedHeight = 154;
   const sheetTravel = Math.max(sheetHeight - collapsedHeight, 1);
@@ -59,19 +62,14 @@ export default function NavigationScreen() {
   }, [sheetPosition, sheetTravel]);
 
   useEffect(() => {
-    let isMounted = true;
-    const syncTrip = async () => {
-      if (!tripCode) return;
-      const latestTrip = await getTripByCode(tripCode);
-      if (isMounted && latestTrip) setTrip(latestTrip);
-    };
-    void syncTrip();
-    const timer = setInterval(() => void syncTrip(), 1500);
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
-  }, [tripCode]);
+    if (!tripId) {
+      return;
+    }
+
+    return subscribeToSharedTrip(tripId, setTrip, () => {
+      setTrip(activeTrip);
+    });
+  }, [tripId]);
 
   const snapSheet = (open: boolean) => {
     const toValue = open ? 0 : sheetTravel;
@@ -275,18 +273,20 @@ export default function NavigationScreen() {
                 })}
               </View>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="End trip"
-              onPress={() => void handleEndTrip()}
-              disabled={isUpdating}
-              style={[
-                styles.endTripButton,
-                isUpdating && styles.buttonDisabled,
-              ]}
-            >
-              <Text style={styles.endTripButtonText}>End trip</Text>
-            </Pressable>
+            {isHost ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="End trip"
+                onPress={() => void handleEndTrip()}
+                disabled={isUpdating}
+                style={[
+                  styles.endTripButton,
+                  isUpdating && styles.buttonDisabled,
+                ]}
+              >
+                <Text style={styles.endTripButtonText}>End trip</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Animated.View>
       </View>

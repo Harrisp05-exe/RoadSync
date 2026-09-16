@@ -6,11 +6,11 @@ The current app includes onboarding, Firebase email authentication, a home dashb
 
 ## Current Scope
 
-RoadSync currently uses a lightweight local Node.js API for trip data and Firebase for email authentication and user profiles.
+RoadSync uses Firebase Authentication and Firestore for accounts and shared trip data.
 
-- Start the local API with `node scripts/roadsync-server.js` when you want trips to persist in `app-data/roadsync-store.json`.
-- If the local API is unavailable, trip creation and trip details fall back to an in-memory store for the current app session.
-- Firebase configuration is loaded from `firebase-config.ts`; authentication uses Firebase Authentication and profiles use Firestore.
+- Trips are stored in Firestore and can be joined from any network-connected device.
+- Participant changes use real-time Firestore listeners.
+- Firebase configuration is loaded from `firebase-config.ts`.
 - Profile image data is stored locally on the device with AsyncStorage.
 - Google Maps links are parsed for route names and coordinates; a Google Maps API integration is not implemented.
 - Google and Apple authentication buttons are currently frontend placeholders.
@@ -55,7 +55,7 @@ RoadSync currently uses a lightweight local Node.js API for trip data and Fireba
 - Optional future date and time scheduling
 - Validation for missing fields, invalid URLs, and past schedules
 - Discard confirmation when cancelling a partially completed form
-- Local API trip creation with an in-memory fallback
+- Firestore-backed trip creation and joining
 
 ### Trip Details
 
@@ -98,20 +98,13 @@ npm install
 ### Start the development server
 
 ```bash
-npx expo start
+npx expo start --port 8082
 ```
 
-The app automatically checks for the local trip API on port `3001`. To enable persistent local trip data, run the API in a second terminal:
+Trips no longer require the local Node.js server or a shared Wi-Fi network. Configure Firebase using [FIREBASE_SETUP.md](FIREBASE_SETUP.md), then start Expo:
 
 ```bash
-node scripts/roadsync-server.js
-```
-
-To set an explicit API URL in PowerShell:
-
-```powershell
-$env:EXPO_PUBLIC_ROADSYNC_SERVER_URL = "http://192.168.1.10:3001"
-npx expo start
+npm start
 ```
 
 Useful platform commands:
@@ -147,7 +140,7 @@ app/
 
 app-data/
    roadsync.ts              Trip types, API client, fallback store, and route parsing
-   roadsync-store.json      Local API trip data
+   roadsync-store.json      Legacy local API data (not used by the app)
 
 components/
    roadsync/
@@ -164,14 +157,12 @@ hooks/
 
 assets/images/             Local onboarding and app imagery
 scripts/
-   roadsync-server.js       Local trip API
+   roadsync-server.js       Legacy local trip API
 ```
 
 ## Trip Data and API Behavior
 
-Trip data is represented by the `RoadTrip` type in `app-data/roadsync.ts`. The app attempts to use the local API for creating, joining, reading, and updating trips. The API exposes health, trip creation, trip lookup, join, participant status, leave, and end-trip endpoints.
-
-The local API stores records in `app-data/roadsync-store.json`. When the API cannot be reached, the client uses an in-memory fallback for supported flows; fallback data is lost when the app restarts.
+Trip data is represented by the `RoadTrip` type in `app-data/roadsync.ts`. Active trip operations are implemented in `firebase-trip-service.ts` and stored in Firestore. Trips use a unique six-character code, a `tripCodes` lookup document, and participants under `trips/{tripId}/participants/{userId}`.
 
 The main trip shape is:
 
@@ -191,7 +182,7 @@ The main trip shape is:
 }
 ```
 
-Firebase trip service functions are also present in `firebase-service.ts`, but the current trip screens use the local API client in `app-data/roadsync.ts`.
+The app subscribes to Firestore trip and participant snapshots, so multiple devices see joins and status changes without polling.
 
 ## Validation and Verification
 
@@ -212,7 +203,7 @@ The lint command is the project’s current automated check. Export directories 
 ## Development Notes
 
 - Use `react-native-safe-area-context` for safe-area handling.
-- Keep local API behavior and Firebase behavior documented separately until the trip backend is consolidated.
+- Deploy the rules in `firestore.rules` before testing shared trips.
 - Avoid committing production Firebase configuration or credentials.
 - Native modules such as DateTimePicker and Clipboard may require a rebuild when testing in a custom development build.
 

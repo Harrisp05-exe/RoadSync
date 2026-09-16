@@ -12,7 +12,8 @@ export default function JoinTripScreen() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleJoinTrip = async () => {
-    const result = await joinTrip(tripCode, travelerName);
+    setErrorMessage("");
+    const result = await joinTrip(tripCode.trim(), travelerName.trim());
 
     if (result.error || !result.trip || !result.participant) {
       setErrorMessage(result.error ?? "Unable to join the trip right now.");
@@ -36,7 +37,8 @@ export default function JoinTripScreen() {
       <Section>
         <Text style={styles.title}>Join a trip</Text>
         <Text style={styles.subtitle}>
-          Enter your name and the 5-digit host code to join the shared route.
+          Enter your name and the 6-character host code to join the shared
+          route.
         </Text>
       </Section>
 
@@ -57,9 +59,9 @@ export default function JoinTripScreen() {
           <TextInput
             value={tripCode}
             onChangeText={setTripCode}
-            keyboardType="number-pad"
-            maxLength={5}
-            placeholder="48213"
+            autoCapitalize="characters"
+            maxLength={6}
+            placeholder="AB12CD"
             placeholderTextColor="#94a3b8"
             style={styles.input}
           />

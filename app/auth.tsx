@@ -1,4 +1,5 @@
 import { loginUser, registerUser } from "@/firebase-auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -83,6 +84,10 @@ export default function AuthScreen() {
       setLoading(true);
       try {
         await registerUser(trimmedEmail, trimmedPassword, trimmedName);
+        await AsyncStorage.multiSet([
+          ["roadsync.user.username", trimmedName],
+          ["roadsync.user.email", trimmedEmail],
+        ]);
         router.replace("/home");
       } catch (err: any) {
         setError(err.message || "Failed to create account. Please try again.");
@@ -92,7 +97,11 @@ export default function AuthScreen() {
     } else {
       setLoading(true);
       try {
-        await loginUser(trimmedEmail, trimmedPassword);
+        const user = await loginUser(trimmedEmail, trimmedPassword);
+        await AsyncStorage.multiSet([
+          ["roadsync.user.username", user.displayName?.trim() || ""],
+          ["roadsync.user.email", user.email || trimmedEmail],
+        ]);
         router.replace("/home");
       } catch (err: any) {
         setError(err.message || "Invalid email or password.");

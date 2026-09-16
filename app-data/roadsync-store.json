@@ -1,4 +1,74 @@
 {
+  "38839": {
+    "id": "phone-laptop-test-1789569914573",
+    "name": "Phone Laptop Test 1789569914573",
+    "tripCode": "38839",
+    "hostName": "Laptop Host",
+    "routeData": {
+      "rawUrl": "https://maps.google.com/?daddr=Asheville%2C%20NC",
+      "destinationName": "Asheville, NC",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789569914597",
+        "name": "Laptop Host",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T14:45:14.597Z"
+      },
+      {
+        "id": "traveler-1789569914608",
+        "name": "Phone User",
+        "role": "Traveler",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T14:45:14.608Z"
+      },
+      {
+        "id": "traveler-1789569914613",
+        "name": "Laptop User",
+        "role": "Traveler",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T14:45:14.613Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Asheville, NC",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Asheville, NC",
+    "notes": "Laptop Host created this shared trip."
+  },
   "44712": {
     "id": "shared-join-test-1789321920048",
     "name": "Shared Join Test 1789321920048",
@@ -68,6 +138,190 @@
     "safetyStatus": "All clear",
     "nextStop": "Asheville, NC",
     "notes": "Host One created this shared trip."
+  },
+  "57887": {
+    "id": "hello",
+    "name": "Hello",
+    "tripCode": "57887",
+    "hostName": "Guest",
+    "routeData": {
+      "rawUrl": "https://maps.app.goo.gl/yFDVduzYYvwYWLAm6?g_st=ic",
+      "destinationName": "Destination",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789571031028",
+        "name": "Guest",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T15:03:51.028Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Destination",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Destination",
+    "notes": "Guest created this shared trip."
+  },
+  "59820": {
+    "id": "rebello",
+    "name": "Rebello",
+    "tripCode": "59820",
+    "hostName": "Guest",
+    "routeData": {
+      "rawUrl": "https://maps.app.goo.gl/yFDVduzYYvwYWLAm6?g_st=ic",
+      "destinationName": "Destination",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789570932122",
+        "name": "Guest",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T15:02:12.122Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Destination",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Destination",
+    "notes": "Guest created this shared trip."
+  },
+  "64028": {
+    "id": "rebello",
+    "name": "Rebello",
+    "tripCode": "64028",
+    "hostName": "Guest",
+    "routeData": {
+      "rawUrl": "https://maps.app.goo.gl/yFDVduzYYvwYWLAm6?g_st=ic",
+      "destinationName": "Destination",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789571002082",
+        "name": "Guest",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T15:03:22.082Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Destination",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Destination",
+    "notes": "Guest created this shared trip."
+  },
+  "67543": {
+    "id": "rebello",
+    "name": "Rebello",
+    "tripCode": "67543",
+    "hostName": "Guest",
+    "routeData": {
+      "rawUrl": "https://maps.app.goo.gl/yFDVduzYYvwYWLAm6?g_st=ic",
+      "destinationName": "Destination",
+      "originName": "Current location",
+      "centerLatitude": 37.7749,
+      "centerLongitude": -122.4194,
+      "coordinates": []
+    },
+    "participants": [
+      {
+        "id": "host-1789571011097",
+        "name": "Guest",
+        "role": "Host",
+        "status": "Waiting",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        },
+        "isActive": true,
+        "joinedAt": "2026-09-16T15:03:31.097Z"
+      }
+    ],
+    "stops": [
+      {
+        "id": "start",
+        "name": "Depart",
+        "time": "Now",
+        "status": "current"
+      },
+      {
+        "id": "mid",
+        "name": "Destination",
+        "time": "En route",
+        "status": "upcoming"
+      }
+    ],
+    "status": "active",
+    "safetyStatus": "All clear",
+    "nextStop": "Destination",
+    "notes": "Guest created this shared trip."
   },
   "09748": {
     "id": "test",

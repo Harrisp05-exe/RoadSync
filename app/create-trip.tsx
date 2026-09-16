@@ -205,24 +205,33 @@ export default function CreateTripScreen() {
     }
 
     setError("");
-    const trip = await createTrip({
-      name: trimmedName,
-      hostName,
-      mapUrl: trimmedMapsLink,
-      isScheduled,
-      scheduledDate: scheduledDate?.toISOString() ?? null,
-      scheduledTime: scheduledTime?.toISOString() ?? null,
-    });
-    router.push({
-      pathname: "/trip/[id]",
-      params: {
-        id: trip.id,
-        tripCode: trip.tripCode,
-        participantId: trip.participants[0]?.id,
-        isHost: "true",
-        name: trip.name,
-      },
-    });
+    try {
+      const trip = await createTrip({
+        name: trimmedName,
+        hostName,
+        mapUrl: trimmedMapsLink,
+        isScheduled,
+        scheduledDate: scheduledDate?.toISOString() ?? null,
+        scheduledTime: scheduledTime?.toISOString() ?? null,
+      });
+
+      router.push({
+        pathname: "/trip/[id]",
+        params: {
+          id: trip.id,
+          tripCode: trip.tripCode,
+          participantId: trip.participants[0]?.id,
+          isHost: "true",
+          name: trip.name,
+        },
+      });
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Unable to create a shared trip. Start the RoadSync server and try again.",
+      );
+    }
   };
 
   const handleCancel = () => {

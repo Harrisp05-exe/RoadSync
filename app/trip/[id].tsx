@@ -16,12 +16,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
     activeTrip,
     endTrip,
-    getTripByCode,
     leaveTrip,
+    startTrip,
+    updateParticipantStatus,
     type RoadTrip,
     type TripMemberStatus,
-    updateParticipantStatus,
 } from "@/app-data/roadsync";
+import { subscribeToSharedTrip } from "@/firebase-trip-service";
 import RouteMap from "../../components/route-map";
 
 const STATUS_OPTIONS: TripMemberStatus[] = ["Waiting", "Driving", "SOS"];
@@ -39,11 +40,21 @@ export default function TripDetailsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRouteMap, setShowRouteMap] = useState(false);
   const [showCopyToast, setShowCopyToast] = useState(false);
+  const [startError, setStartError] = useState("");
   const [sliderWidth, setSliderWidth] = useState(0);
   const sliderWidthRef = useRef(0);
   const sliderProgress = useRef(new Animated.Value(0)).current;
   const copyToastAnim = useRef(new Animated.Value(0)).current;
   const navigationStarted = useRef(false);
+
+  const resetSlider = () => {
+    Animated.spring(sliderProgress, {
+      toValue: 0,
+      friction: 8,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -96,51 +107,65 @@ export default function TripDetailsScreen() {
         id: trip?.id,
         tripCode: trip?.tripCode,
         participantId,
+        isHost: String(isHost),
         name: trip?.name,
       },
     });
+  };
+
+  const handleStartTrip = async () => {
+    if (!trip || isRefreshing) {
+      return;
+    }
+    setIsRefreshing(true);
+    setStartError("");
+    try {
+      await startTrip(trip.id);
+      goToNavigation();
+    } catch (error) {
+      setStartError(
+        error instanceof Error
+          ? error.message
+          : "Unable to start the trip. Please try again.",
+      );
+    }
+    setIsRefreshing(false);
   };
 
   const sliderResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_, gesture) => {
+        if (Math.abs(gesture.dy) > Math.abs(gesture.dx)) {
+          return;
+        }
         const trackWidth = Math.max(sliderWidthRef.current - 56, 1);
         const progress = Math.max(0, Math.min(1, gesture.dx / trackWidth));
         sliderProgress.setValue(progress);
-
-        if (progress >= 0.99) {
-          goToNavigation();
-        }
       },
       onPanResponderRelease: (_, gesture) => {
         const trackWidth = Math.max(sliderWidthRef.current - 56, 1);
         const progress = Math.max(0, Math.min(1, gesture.dx / trackWidth));
 
-        if (progress >= 0.99) {
+        if (progress >= 0.8) {
           Animated.spring(sliderProgress, {
-            toValue: 1,
+            toValue: progress,
             useNativeDriver: true,
           }).start();
-          goToNavigation();
+          void handleStartTrip();
           return;
         }
 
-        Animated.spring(sliderProgress, {
-          toValue: 0,
-          friction: 8,
-          tension: 120,
-          useNativeDriver: true,
-        }).start();
+        resetSlider();
       },
+      onPanResponderTerminate: resetSlider,
     }),
   ).current;
 
-  const tripCode =
-    typeof params.tripCode === "string"
-      ? params.tripCode
-      : (trip?.tripCode ?? "");
+  const tripId = typeof params.id === "string" ? params.id : "";
   const participantId =
     typeof params.participantId === "string"
       ? params.participantId
@@ -149,35 +174,30 @@ export default function TripDetailsScreen() {
     typeof params.isHost === "string" ? params.isHost === "true" : false;
 
   useEffect(() => {
-    let isMounted = true;
+    if (!tripId) {
+      return;
+    }
 
-    const syncTrip = async () => {
-      if (!tripCode) {
-        return;
-      }
+    return subscribeToSharedTrip(tripId, setTrip, () => {
+      setTrip(activeTrip);
+    });
+  }, [tripId]);
 
-      try {
-        const latestTrip = await getTripByCode(tripCode);
-        if (isMounted) {
-          setTrip(latestTrip ?? activeTrip);
-        }
-      } catch {
-        if (isMounted) {
-          setTrip(activeTrip);
-        }
-      }
-    };
-
-    void syncTrip();
-    const timer = setInterval(() => {
-      void syncTrip();
-    }, 1500);
-
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
-  }, [tripCode]);
+  useEffect(() => {
+    if (!isHost && trip?.isStarted && !navigationStarted.current) {
+      navigationStarted.current = true;
+      router.push({
+        pathname: "/trip/navigation",
+        params: {
+          id: trip.id,
+          tripCode: trip.tripCode,
+          participantId,
+          isHost: "false",
+          name: trip.name,
+        },
+      });
+    }
+  }, [isHost, participantId, trip]);
 
   if (!trip) {
     return null;
@@ -367,45 +387,58 @@ export default function TripDetailsScreen() {
             ))}
           </View>
         </ScrollView>
-        {trip.status === "active" ? (
+        {trip.status === "active" && !trip.isStarted ? (
           <View style={styles.actionsFooter}>
             <View style={styles.actionsRow}>
-              <View
-                style={styles.startSlider}
-                onLayout={(event) => {
-                  const width = event.nativeEvent.layout.width;
-                  sliderWidthRef.current = width;
-                  setSliderWidth(width);
-                }}
-              >
-                <View
-                  style={styles.sliderTrack}
-                  {...sliderResponder.panHandlers}
-                >
-                  <Text style={styles.sliderHint}>Start trip</Text>
-                  <Animated.View
-                    style={[
-                      styles.sliderThumb,
-                      {
-                        transform: [
-                          {
-                            translateX: sliderProgress.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, Math.max(sliderWidth - 56, 1)],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
+              {isHost ? (
+                <View style={styles.startSliderColumn}>
+                  <View
+                    style={styles.startSlider}
+                  onLayout={(event) => {
+                    const width = event.nativeEvent.layout.width;
+                    sliderWidthRef.current = width;
+                    setSliderWidth(width);
+                  }}
                   >
-                    <MaterialIcons
-                      name="arrow-forward"
-                      size={25}
-                      color="#ffffff"
-                    />
-                  </Animated.View>
+                  <View
+                    style={styles.sliderTrack}
+                    {...sliderResponder.panHandlers}
+                  >
+                    <Text style={styles.sliderHint}>Start trip</Text>
+                    <Animated.View
+                      style={[
+                        styles.sliderThumb,
+                        {
+                          transform: [
+                            {
+                              translateX: sliderProgress.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, Math.max(sliderWidth - 56, 1)],
+                              }),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="arrow-forward"
+                        size={25}
+                        color="#ffffff"
+                      />
+                    </Animated.View>
+                  </View>
+                  </View>
+                  {startError ? (
+                    <Text style={styles.startError}>{startError}</Text>
+                  ) : null}
                 </View>
-              </View>
+              ) : (
+                <View style={styles.waitingForHost}>
+                  <Text style={styles.waitingForHostText}>
+                    Waiting for the host to start
+                  </Text>
+                </View>
+              )}
               {isHost ? (
                 <TouchableOpacity
                   style={styles.endTripButton}
@@ -691,8 +724,31 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 12,
   },
+  startSliderColumn: {
+    flex: 1,
+    gap: 6,
+  },
   startSlider: {
     flex: 1,
+  },
+  startError: {
+    color: "#b91c1c",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  waitingForHost: {
+    flex: 1,
+    minHeight: 56,
+    borderRadius: 16,
+    backgroundColor: "#eef2f7",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  waitingForHostText: {
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: "800",
   },
   sliderTrack: {
     height: 56,

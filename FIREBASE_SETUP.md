@@ -2,7 +2,7 @@
 
 RoadSync already includes Firebase integration in `firebase-config.ts`, `firebase-auth.ts`, and `firebase-service.ts`. Use this guide to configure a Firebase project and verify the existing integration; do not create duplicate files unless the implementation has been removed.
 
-The current app uses Firebase Authentication for email/password accounts and Firestore for user profiles. Trip screens currently use the local API described in the main [README](README.md), so the trip service functions in this file are available groundwork rather than the active trip data path.
+The app uses Firebase Authentication and Firestore for profiles and shared trips. Trip creation, joining, participant status, and real-time trip updates now use Firestore directly; the local Node API is no longer required for the app.
 
 ## Phase 1: Create Firebase Project
 
@@ -101,24 +101,24 @@ roadsync/
 │   │   ├── notes: string
 │   │   ├── createdAt: timestamp
 │   │   ├── updatedAt: timestamp
-│   │   └── routeData (subcollection)
-│   │       └── coordinates/
+│   │   └── participants/
+│   │       └── {userId}
+│   │           ├── id: string
+│   │           ├── tripId: string
+│   │           ├── name: string
+│   │           ├── role: "Host" | "Traveler"
+│   │           ├── status: "Waiting" | "Driving" | "SOS"
 │   │           ├── latitude: number
 │   │           ├── longitude: number
-│   │           └── index: number
+│   │           ├── isActive: boolean
+│   │           ├── joinedAt: timestamp
+│   │           └── lastLocationUpdate: timestamp
 │
-├── tripParticipants/
-│   ├── {tripId}_{userId}
-│   │   ├── tripId: string
-│   │   ├── userId: string
-│   │   ├── name: string
-│   │   ├── role: "Host" | "Traveler"
-│   │   ├── status: "Waiting" | "Driving" | "SOS"
-│   │   ├── latitude: number
-│   │   ├── longitude: number
-│   │   ├── isActive: boolean
-│   │   ├── joinedAt: timestamp
-│   │   └── lastLocationUpdate: timestamp
+├── tripCodes/
+│   └── {tripCode}
+│       ├── tripId: string
+│       ├── status: "active" | "ended"
+│       └── createdAt: timestamp
 │
 └── tripStops/
     ├── {tripId}_{stopIndex}
@@ -135,46 +135,7 @@ roadsync/
 
 ### Firestore Security Rules
 
-Go to **Firestore** → **Rules** and replace with:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can only read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-    }
-
-    // Trips: host can manage, participants can read
-    match /trips/{tripId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if
-        resource.data.hostId == request.auth.uid;
-    }
-
-    // Trip Participants
-    match /tripParticipants/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if
-        request.auth.uid == resource.data.userId ||
-        exists(/databases/$(database)/documents/trips/$(resource.data.tripId)) &&
-        get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.hostId == request.auth.uid;
-    }
-
-    // Trip Stops
-    match /tripStops/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if
-        exists(/databases/$(database)/documents/trips/$(resource.data.tripId)) &&
-        get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.hostId == request.auth.uid;
-    }
-  }
-}
-```
+Go to **Firestore** → **Rules**, replace the editor contents with the complete contents of [firestore.rules](firestore.rules), and click **Publish**. These rules ensure only the host can start or end a trip; participants can update only their own status and location.
 
 ---
 
@@ -193,6 +154,8 @@ Firebase will auto-suggest these, but you can create them preemptively:
 ---
 
 ## Phase 6: Firebase Service Functions
+
+The active trip implementation is in `firebase-trip-service.ts`. It uses transactions to reserve unique trip codes, stores participants under each trip, and uses Firestore snapshot listeners for live updates.
 
 Create `firebase-service.ts`:
 

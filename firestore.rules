@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function tripData(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)).data;
+    }
+
+    function tripDataAfter(tripId) {
+      return getAfter(/databases/$(database)/documents/trips/$(tripId)).data;
+    }
+
+    function isTripHost(tripId) {
+      return signedIn() && tripData(tripId).hostId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /tripCodes/{code} {
+      allow get: if signedIn();
+      allow list, delete: if false;
+      allow create: if signedIn()
+        && request.resource.data.status == 'active'
+        && request.resource.data.tripId is string;
+      allow update: if signedIn()
+        && tripData(resource.data.tripId).hostId == request.auth.uid
+        && request.resource.data.tripId == resource.data.tripId
+        && request.resource.data.status == 'ended';
+    }
+
+    match /trips/{tripId} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.isStarted == false;
+      allow update: if isTripHost(tripId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isStarted', 'startedAt', 'updatedAt', 'notes', 'status'
+        ])
+        && (
+          (resource.data.isStarted == false
+            && request.resource.data.isStarted == true
+            && request.resource.data.status == resource.data.status)
+          || (request.resource.data.status == 'ended'
+            && request.resource.data.isStarted == resource.data.isStarted)
+        );
+      allow delete: if isTripHost(tripId);
+
+      match /participants/{userId} {
+        allow get, list: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && tripDataAfter(tripId).status == 'active'
+          && request.resource.data.id == userId
+          && request.resource.data.tripId == tripId;
+        allow update: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.tripId == resource.data.tripId;
+        allow delete: if signedIn()
+          && (request.auth.uid == userId || isTripHost(tripId));
+      }
+    }
+  }
+}

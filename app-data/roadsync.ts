@@ -43,12 +43,22 @@ export type RoadTrip = {
   participants: TripMember[];
   stops: TripStop[];
   status: "active" | "ended";
+  isStarted?: boolean;
+  startedAt?: string | null;
   safetyStatus: "All clear" | "Check-in due" | "Attention needed";
   nextStop: string;
   notes: string;
 };
 
-import Constants from "expo-constants";
+import {
+    createSharedTrip,
+    endSharedTrip,
+    getSharedTripByCode,
+    joinSharedTrip,
+    leaveSharedTrip,
+    startSharedTrip,
+    updateSharedParticipantStatus,
+} from "@/firebase-trip-service";
 
 export type CreateTripInput = {
   name: string;
@@ -60,99 +70,6 @@ export type CreateTripInput = {
 };
 
 const tripStore = new Map<string, RoadTrip>();
-
-function getServerUrlCandidates(): string[] {
-  const candidates = new Set<string>();
-
-  const override =
-    process.env.EXPO_PUBLIC_ROADSYNC_SERVER_URL ||
-    process.env.ROADSYNC_SERVER_URL;
-
-  if (override) {
-    candidates.add(override);
-  }
-
-  const hostUri =
-    (Constants as typeof Constants & { expoConfig?: { hostUri?: string } })
-      .expoConfig?.hostUri ||
-    (Constants as typeof Constants & { manifest?: { debuggerHost?: string } })
-      .manifest?.debuggerHost;
-
-  if (typeof hostUri === "string" && hostUri.includes(":")) {
-    const host = hostUri.split(":")[0];
-    candidates.add(`http://${host}:3001`);
-  }
-
-  if (typeof window !== "undefined" && window.location?.origin) {
-    const originHost = window.location.origin.replace(/^https?:\/\//, "");
-    const host = originHost.replace(/:\d+$/, "");
-    if (host && host !== "localhost" && host !== "127.0.0.1") {
-      candidates.add(`http://${host}:3001`);
-    }
-  }
-
-  candidates.add("http://192.168.1.106:3001");
-  candidates.add("http://127.0.0.1:3001");
-  candidates.add("http://10.0.2.2:3001");
-
-  return Array.from(candidates);
-}
-
-let activeServerUrl = getServerUrlCandidates()[0];
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const candidates = getServerUrlCandidates();
-  const orderedCandidates = activeServerUrl
-    ? [
-        activeServerUrl,
-        ...candidates.filter((candidate) => candidate !== activeServerUrl),
-      ]
-    : candidates;
-
-  for (const candidate of orderedCandidates) {
-    try {
-      const healthResponse = await fetch(`${candidate}/health`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!healthResponse.ok) {
-        continue;
-      }
-
-      activeServerUrl = candidate;
-
-      const response = await fetch(`${candidate}${path}`, {
-        headers: { "Content-Type": "application/json" },
-        ...init,
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || "Request failed");
-      }
-
-      return data as T;
-    } catch {
-      // Try the next candidate.
-    }
-  }
-
-  throw new Error("Unable to reach the RoadSync server.");
-}
-
-async function getTripFromServer(code: string): Promise<RoadTrip | undefined> {
-  try {
-    const trip = await requestJson<RoadTrip>(
-      `/trips/${encodeURIComponent(code)}`,
-    );
-    tripStore.set(code.trim(), trip);
-    return trip;
-  } catch {
-    return undefined;
-  }
-}
 
 export function generateNumericCode(length = 5): string {
   return Array.from({ length }, () =>
@@ -309,62 +226,26 @@ export async function createTrip(input: CreateTripInput): Promise<RoadTrip> {
   const normalizedName = input.name.trim() || "Road Trip";
   const normalizedHost = input.hostName.trim() || "Host";
   const routeData = parseGoogleMapsRoute(input.mapUrl);
-  const baseLocation = routeData.coordinates[0] ?? {
-    latitude: routeData.centerLatitude,
-    longitude: routeData.centerLongitude,
-  };
-
-  const fallbackTrip: RoadTrip = {
-    id: generateTripId(normalizedName),
+  const createdTrip = await createSharedTrip({
     name: normalizedName,
-    tripCode: generateNumericCode(),
     hostName: normalizedHost,
+    routeData,
     isScheduled: input.isScheduled ?? false,
     scheduledDate: input.scheduledDate ?? null,
     scheduledTime: input.scheduledTime ?? null,
-    routeData,
-    participants: [
-      {
-        id: `host-${Date.now()}`,
-        name: normalizedHost,
-        role: "Host",
-        status: "Waiting",
-        location: baseLocation,
-        isActive: true,
-        joinedAt: new Date().toISOString(),
-      },
-    ],
     stops: [
       { id: "start", name: "Depart", time: "Now", status: "current" },
       {
-        id: "mid",
+        id: "destination",
         name: routeData.destinationName,
         time: "En route",
         status: "upcoming",
       },
     ],
-    status: "active",
-    safetyStatus: "All clear",
-    nextStop: routeData.destinationName,
-    notes: `${normalizedHost} created this shared trip.`,
-  };
+  });
 
-  try {
-    const createdTrip = await requestJson<RoadTrip>("/trips", {
-      method: "POST",
-      body: JSON.stringify({
-        name: normalizedName,
-        hostName: normalizedHost,
-        mapUrl: input.mapUrl,
-      }),
-    });
-
-    tripStore.set(createdTrip.tripCode, createdTrip);
-    return createdTrip;
-  } catch {
-    tripStore.set(fallbackTrip.tripCode, fallbackTrip);
-    return fallbackTrip;
-  }
+  tripStore.set(createdTrip.tripCode, createdTrip);
+  return createdTrip;
 }
 
 export function createMockTrip(input: CreateTripInput): RoadTrip {
@@ -432,15 +313,11 @@ export async function getTripByCode(
     return undefined;
   }
 
-  try {
-    const trip = await requestJson<RoadTrip>(
-      `/trips/${encodeURIComponent(normalizedCode)}`,
-    );
+  const trip = await getSharedTripByCode(normalizedCode);
+  if (trip) {
     tripStore.set(normalizedCode, trip);
-    return trip;
-  } catch {
-    return tripStore.get(normalizedCode);
   }
+  return trip;
 }
 
 export async function joinTrip(
@@ -452,18 +329,8 @@ export async function joinTrip(
   error?: string;
 }> {
   try {
-    const result = await requestJson<{
-      trip: RoadTrip;
-      participant: TripMember;
-    }>("/trips/join", {
-      method: "POST",
-      body: JSON.stringify({ code, travelerName }),
-    });
-
-    if (result.trip) {
-      tripStore.set(result.trip.tripCode, result.trip);
-    }
-
+    const result = await joinSharedTrip(code, travelerName);
+    tripStore.set(result.trip.tripCode, result.trip);
     return result;
   } catch (error) {
     return {
@@ -480,91 +347,46 @@ export async function updateParticipantStatus(
   participantId: string,
   status: TripMemberStatus,
 ): Promise<RoadTrip | undefined> {
-  try {
-    const updatedTrip = await requestJson<RoadTrip>(
-      `/trips/${encodeURIComponent(code)}/status`,
-      {
-        method: "POST",
-        body: JSON.stringify({ participantId, status }),
-      },
-    );
-
-    tripStore.set(code.trim(), updatedTrip);
-    return updatedTrip;
-  } catch {
-    const trip = tripStore.get(code.trim());
-
-    if (!trip) {
-      return undefined;
-    }
-
-    trip.participants = trip.participants.map((participant) =>
-      participant.id === participantId
-        ? { ...participant, status }
-        : participant,
-    );
-
-    return trip;
+  const trip = await getSharedTripByCode(code);
+  if (
+    !trip ||
+    !trip.participants.some((participant) => participant.id === participantId)
+  ) {
+    return undefined;
   }
+
+  await updateSharedParticipantStatus(trip.id, status);
+  return getSharedTripByCode(code);
+}
+
+export async function startTrip(tripId: string): Promise<void> {
+  await startSharedTrip(tripId);
 }
 
 export async function leaveTrip(
   code: string,
   participantId: string,
 ): Promise<RoadTrip | undefined> {
-  try {
-    const updatedTrip = await requestJson<RoadTrip>(
-      `/trips/${encodeURIComponent(code)}/leave`,
-      {
-        method: "POST",
-        body: JSON.stringify({ participantId }),
-      },
-    );
-
-    tripStore.set(code.trim(), updatedTrip);
-    return updatedTrip;
-  } catch {
-    const trip = tripStore.get(code.trim());
-
-    if (!trip) {
-      return undefined;
-    }
-
-    trip.participants = trip.participants.filter(
-      (participant) => participant.id !== participantId,
-    );
-
-    if (trip.participants.length === 0) {
-      trip.status = "ended";
-      trip.notes = "The trip has ended.";
-    }
-
-    return trip;
+  const trip = await getSharedTripByCode(code);
+  if (
+    !trip ||
+    !trip.participants.some((participant) => participant.id === participantId)
+  ) {
+    return undefined;
   }
+
+  await leaveSharedTrip(trip.id);
+  return getSharedTripByCode(code);
 }
 
 export async function endTrip(code: string): Promise<RoadTrip | undefined> {
-  try {
-    const updatedTrip = await requestJson<RoadTrip>(
-      `/trips/${encodeURIComponent(code)}/end`,
-      {
-        method: "POST",
-      },
-    );
-
-    tripStore.set(code.trim(), updatedTrip);
-    return updatedTrip;
-  } catch {
-    const trip = tripStore.get(code.trim());
-
-    if (!trip) {
-      return undefined;
-    }
-
-    trip.status = "ended";
-    trip.notes = "The host ended this trip.";
-    return trip;
+  const trip = await getSharedTripByCode(code);
+  if (!trip) {
+    return undefined;
   }
+
+  await endSharedTrip(trip.id);
+  return getSharedTripByCode(code);
 }
 
 export const activeTrip: RoadTrip = {
