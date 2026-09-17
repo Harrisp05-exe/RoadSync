@@ -1,3 +1,4 @@
+import { logoutUser } from "@/firebase-auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -133,6 +134,11 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Ignore if auth already logged out
+    }
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.email,
       STORAGE_KEYS.username,

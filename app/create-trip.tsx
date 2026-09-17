@@ -215,6 +215,18 @@ export default function CreateTripScreen() {
         scheduledTime: scheduledTime?.toISOString() ?? null,
       });
 
+      await AsyncStorage.setItem(
+        "roadsync.lastTrip",
+        JSON.stringify({
+          id: trip.id,
+          tripCode: trip.tripCode,
+          participantId: trip.participants[0]?.id,
+          isHost: true,
+          name: trip.name,
+          nextStop: trip.nextStop,
+        }),
+      );
+
       router.push({
         pathname: "/trip/[id]",
         params: {

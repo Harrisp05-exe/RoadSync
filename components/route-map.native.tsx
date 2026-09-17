@@ -25,8 +25,7 @@ export default function RouteMap({
     <View
       style={[
         styles.mapWrap,
-        { height: mapHeight },
-        fullScreen && styles.fullScreen,
+        fullScreen ? styles.fullScreen : { height: mapHeight },
       ]}
     >
       <MapView style={styles.mapView} initialRegion={region} showsUserLocation>
@@ -62,6 +61,8 @@ const styles = StyleSheet.create({
     borderColor: "#dbeafe",
   },
   fullScreen: {
+    height: "100%",
+    width: "100%",
     borderRadius: 0,
     borderWidth: 0,
   },

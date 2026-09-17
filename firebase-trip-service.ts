@@ -98,6 +98,7 @@ function tripFromData(
     name: data.name,
     tripCode: data.tripCode,
     hostName: data.hostName,
+    hostId: data.hostId,
     isScheduled: data.isScheduled,
     scheduledDate: data.scheduledDate,
     scheduledTime: data.scheduledTime,
@@ -288,11 +289,43 @@ export async function updateSharedParticipantStatus(
   });
 }
 
-export async function startSharedTrip(tripId: string) {
+async function resolveTripId(tripIdOrCode: string): Promise<string> {
+  const trimmed = tripIdOrCode.trim();
+  if (!trimmed) {
+    throw new Error("Trip identifier is missing.");
+  }
+  // If it matches a direct trip document in Firestore, use it
+  const directSnap = await getDoc(doc(db, "trips", trimmed));
+  if (directSnap.exists()) {
+    return trimmed;
+  }
+  // If not found, check if it's a 6-character tripCode
+  const codeSnap = await getDoc(doc(db, "tripCodes", trimmed.toUpperCase()));
+  if (codeSnap.exists() && codeSnap.data()?.tripId) {
+    return String(codeSnap.data().tripId);
+  }
+  return trimmed;
+}
+
+export async function startSharedTrip(tripIdOrCode: string) {
   const user = requireUser();
+  const tripId = await resolveTripId(tripIdOrCode);
   const tripSnapshot = await getDoc(doc(db, "trips", tripId));
-  if (!tripSnapshot.exists() || tripSnapshot.data().hostId !== user.uid) {
-    throw new Error("Only the trip host can start this trip.");
+  if (!tripSnapshot.exists()) {
+    throw new Error("Trip not found or has already ended.");
+  }
+
+  const tripData = tripSnapshot.data() as FirestoreTrip;
+  const isDirectHost = tripData.hostId === user.uid;
+
+  if (!isDirectHost) {
+    // Check if the participant document records this user as Host
+    const participantSnap = await getDoc(
+      doc(db, "trips", tripId, "participants", user.uid),
+    );
+    if (!participantSnap.exists() || participantSnap.data()?.role !== "Host") {
+      throw new Error("Only the trip host can start this trip.");
+    }
   }
 
   await updateDoc(doc(db, "trips", tripId), {
@@ -308,18 +341,30 @@ export async function leaveSharedTrip(tripId: string) {
   await deleteDoc(doc(db, "trips", tripId, "participants", user.uid));
 }
 
-export async function endSharedTrip(tripId: string) {
+export async function endSharedTrip(tripIdOrCode: string) {
   const user = requireUser();
+  const tripId = await resolveTripId(tripIdOrCode);
   const existingTrip = await getDoc(doc(db, "trips", tripId));
-  if (!existingTrip.exists() || existingTrip.data().hostId !== user.uid) {
-    throw new Error("Only the trip host can end this trip.");
+  if (!existingTrip.exists()) {
+    throw new Error("Trip not found or has already ended.");
   }
+
+  const tripData = existingTrip.data() as FirestoreTrip;
+  const isDirectHost = tripData.hostId === user.uid;
+  if (!isDirectHost) {
+    const participantSnap = await getDoc(
+      doc(db, "trips", tripId, "participants", user.uid),
+    );
+    if (!participantSnap.exists() || participantSnap.data()?.role !== "Host") {
+      throw new Error("Only the trip host can end this trip.");
+    }
+  }
+
   await updateDoc(doc(db, "trips", tripId), {
     status: "ended",
     updatedAt: Timestamp.now(),
   });
-  const tripSnapshot = await getDoc(doc(db, "trips", tripId));
-  const tripCode = tripSnapshot.data()?.tripCode;
+  const tripCode = tripData.tripCode;
   if (typeof tripCode === "string") {
     await updateDoc(doc(db, "tripCodes", tripCode), {
       status: "ended",
@@ -328,46 +373,64 @@ export async function endSharedTrip(tripId: string) {
 }
 
 export function subscribeToSharedTrip(
-  tripId: string,
+  tripIdOrCode: string,
   callback: (trip: RoadTrip) => void,
   onError?: (error: Error) => void,
 ) {
-  let tripData: FirestoreTrip | undefined;
-  let participants: TripMember[] = [];
+  let isCleanedUp = false;
+  let tripUnsubscribe: (() => void) | undefined;
+  let participantsUnsubscribe: (() => void) | undefined;
 
-  const emit = () => {
-    if (tripData) {
-      callback(tripFromData(tripData, participants));
+  const startSubscription = async () => {
+    try {
+      const tripId = await resolveTripId(tripIdOrCode);
+      if (isCleanedUp) return;
+
+      let tripData: FirestoreTrip | undefined;
+      let participants: TripMember[] = [];
+
+      const emit = () => {
+        if (tripData) {
+          callback(tripFromData(tripData, participants));
+        }
+      };
+
+      tripUnsubscribe = onSnapshot(
+        doc(db, "trips", tripId),
+        (snapshot) => {
+          if (snapshot.exists()) {
+            tripData = snapshot.data() as FirestoreTrip;
+            emit();
+          } else {
+            onError?.(new Error("Trip not found."));
+          }
+        },
+        (error) => onError?.(error),
+      );
+
+      participantsUnsubscribe = onSnapshot(
+        collection(db, "trips", tripId, "participants"),
+        (snapshot) => {
+          participants = snapshot.docs.map((participant) =>
+            participantFromData(
+              participant.id,
+              participant.data() as FirestoreParticipant,
+            ),
+          );
+          emit();
+        },
+        (error) => onError?.(error),
+      );
+    } catch (err: any) {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
     }
   };
 
-  const tripUnsubscribe = onSnapshot(
-    doc(db, "trips", tripId),
-    (snapshot) => {
-      if (snapshot.exists()) {
-        tripData = snapshot.data() as FirestoreTrip;
-        emit();
-      }
-    },
-    (error) => onError?.(error),
-  );
-
-  const participantsUnsubscribe = onSnapshot(
-    collection(db, "trips", tripId, "participants"),
-    (snapshot) => {
-      participants = snapshot.docs.map((participant) =>
-        participantFromData(
-          participant.id,
-          participant.data() as FirestoreParticipant,
-        ),
-      );
-      emit();
-    },
-    (error) => onError?.(error),
-  );
+  void startSubscription();
 
   return () => {
-    tripUnsubscribe();
-    participantsUnsubscribe();
+    isCleanedUp = true;
+    tripUnsubscribe?.();
+    participantsUnsubscribe?.();
   };
 }

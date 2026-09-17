@@ -36,6 +36,7 @@ export type RoadTrip = {
   name: string;
   tripCode: string;
   hostName: string;
+  hostId?: string;
   isScheduled?: boolean;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
@@ -359,8 +360,8 @@ export async function updateParticipantStatus(
   return getSharedTripByCode(code);
 }
 
-export async function startTrip(tripId: string): Promise<void> {
-  await startSharedTrip(tripId);
+export async function startTrip(tripIdOrCode: string): Promise<void> {
+  await startSharedTrip(tripIdOrCode);
 }
 
 export async function leaveTrip(

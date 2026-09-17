@@ -22,6 +22,10 @@ export default function RootLayout() {
           options={{ title: "Trip details", gestureEnabled: false }}
         />
         <Stack.Screen
+          name="trip/navigation"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen
           name="modal"
           options={{ presentation: "modal", title: "Modal" }}
         />

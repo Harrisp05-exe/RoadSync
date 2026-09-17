@@ -1,26 +1,32 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     Animated,
     PanResponder,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     useWindowDimensions,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import {
-    activeTrip,
     endTrip,
     type RoadTrip,
     type TripMemberStatus,
     updateParticipantStatus,
 } from "@/app-data/roadsync";
 import RouteMap from "@/components/route-map";
+import { auth } from "@/firebase-config";
 import { subscribeToSharedTrip } from "@/firebase-trip-service";
 
 const STATUS_OPTIONS: {
@@ -41,14 +47,45 @@ export default function NavigationScreen() {
     isHost?: string;
   }>();
   const { height } = useWindowDimensions();
-  const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
+  const insets = useSafeAreaInsets();
+
+  const rawId = params.id;
+  const rawTripCode = params.tripCode;
+  const routeTripId =
+    typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+  const routeTripCode =
+    typeof rawTripCode === "string"
+      ? rawTripCode
+      : Array.isArray(rawTripCode)
+        ? rawTripCode[0]
+        : "";
+  const identifier = routeTripId || routeTripCode;
+
+  const [trip, setTrip] = useState<RoadTrip | undefined>(undefined);
   const [isUpdating, setIsUpdating] = useState(false);
-  const tripId = typeof params.id === "string" ? params.id : "";
+
+  const currentUser = auth.currentUser;
+  const isHost =
+    params.isHost === "true" ||
+    (currentUser != null && trip?.hostId === currentUser.uid) ||
+    (currentUser != null &&
+      Boolean(
+        trip?.participants.some(
+          (p) => p.id === currentUser.uid && p.role === "Host",
+        ),
+      ));
+
+  const rawParticipantId = params.participantId;
+  const paramParticipantId =
+    typeof rawParticipantId === "string"
+      ? rawParticipantId
+      : Array.isArray(rawParticipantId)
+        ? rawParticipantId[0]
+        : "";
   const participantId =
-    typeof params.participantId === "string"
-      ? params.participantId
-      : (trip?.participants[0]?.id ?? "");
-  const isHost = params.isHost === "true";
+    paramParticipantId || currentUser?.uid || (trip?.participants[0]?.id ?? "");
+
+  const bottomOverhang = 100;
   const sheetHeight = Math.min(height * 0.72, 590);
   const collapsedHeight = 154;
   const sheetTravel = Math.max(sheetHeight - collapsedHeight, 1);
@@ -62,14 +99,35 @@ export default function NavigationScreen() {
   }, [sheetPosition, sheetTravel]);
 
   useEffect(() => {
-    if (!tripId) {
+    if (!identifier) {
       return;
     }
 
-    return subscribeToSharedTrip(tripId, setTrip, () => {
-      setTrip(activeTrip);
-    });
-  }, [tripId]);
+    return subscribeToSharedTrip(identifier, setTrip);
+  }, [identifier]);
+
+  useEffect(() => {
+    if (trip?.status === "ended") {
+      void AsyncStorage.removeItem("roadsync.lastTrip");
+      if (!isHost) {
+        Alert.alert(
+          "Trip Ended",
+          "The host has ended this road trip.",
+          [
+            {
+              text: "Return to Home",
+              onPress: () => router.replace("/home"),
+            },
+          ],
+          { cancelable: false },
+        );
+        const timer = setTimeout(() => {
+          router.replace("/home");
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [trip?.status, isHost]);
 
   const snapSheet = (open: boolean) => {
     const toValue = open ? 0 : sheetTravel;
@@ -77,8 +135,9 @@ export default function NavigationScreen() {
     Animated.spring(sheetPosition, {
       toValue,
       useNativeDriver: true,
-      friction: 9,
-      tension: 70,
+      friction: 12,
+      tension: 75,
+      overshootClamping: true,
     }).start();
   };
   const sheetResponder = useRef(
@@ -105,6 +164,12 @@ export default function NavigationScreen() {
         ),
     }),
   ).current;
+
+  const clampedSheetTranslateY = sheetPosition.interpolate({
+    inputRange: [0, sheetTravel],
+    outputRange: [0, sheetTravel],
+    extrapolate: "clamp",
+  });
 
   if (!trip) {
     return (
@@ -135,177 +200,198 @@ export default function NavigationScreen() {
   };
 
   const handleEndTrip = async () => {
+    const targetId = trip?.tripCode || trip?.id || routeTripCode || routeTripId;
+    if (!targetId) return;
     setIsUpdating(true);
-    await endTrip(trip.tripCode);
-    setIsUpdating(false);
-    router.back();
+    try {
+      await endTrip(targetId);
+      await AsyncStorage.removeItem("roadsync.lastTrip");
+      router.replace("/home");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to end trip.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.screen}>
-        <View style={styles.mapLayer}>
-          <RouteMap trip={trip} mapHeight={height} fullScreen />
-        </View>
-        <View style={styles.mapHeader}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back to trip details"
-            onPress={() => router.back()}
-            style={styles.iconButton}
-          >
-            <MaterialIcons name="arrow-back" size={22} color="#102d63" />
-          </Pressable>
-          <View style={styles.headerTitle}>
-            <Text style={styles.eyebrow}>Live trip</Text>
-            <Text style={styles.title} numberOfLines={1}>
-              {trip.name}
-            </Text>
-          </View>
-          <View style={styles.liveDot} />
-        </View>
-
-        <Animated.View
-          {...sheetResponder.panHandlers}
-          style={[
-            styles.sheet,
-            { height: sheetHeight, transform: [{ translateY: sheetPosition }] },
-          ]}
+    <View style={styles.screen}>
+      <View style={styles.mapLayer}>
+        <RouteMap trip={trip} mapHeight={height} fullScreen />
+      </View>
+      <View style={[styles.mapHeader, { top: Math.max(insets.top, 16) + 6 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to trip details"
+          onPress={() => router.back()}
+          style={styles.iconButton}
         >
-          <View style={styles.sheetHandleArea}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.peekRow}>
-              <View>
-                <Text style={styles.peekLabel}>Next stop</Text>
-                <Text style={styles.peekValue} numberOfLines={1}>
-                  {trip.nextStop}
-                </Text>
-              </View>
-              <View style={styles.peekStatus}>
-                <View style={styles.peekDot} />
-                <Text style={styles.peekStatusText}>
-                  {currentParticipant?.status ?? "Waiting"}
-                </Text>
-              </View>
+          <MaterialIcons name="arrow-back" size={22} color="#102d63" />
+        </Pressable>
+        <View style={styles.headerTitle}>
+          <Text style={styles.eyebrow}>Live trip</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {trip.name}
+          </Text>
+        </View>
+        <View style={styles.liveDot} />
+      </View>
+
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            height: sheetHeight + bottomOverhang,
+            transform: [{ translateY: clampedSheetTranslateY }],
+          },
+        ]}
+      >
+        <View style={styles.sheetHandleArea} {...sheetResponder.panHandlers}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.peekRow}>
+            <View>
+              <Text style={styles.peekLabel}>Next stop</Text>
+              <Text style={styles.peekValue} numberOfLines={1}>
+                {trip.nextStop}
+              </Text>
+            </View>
+            <View style={styles.peekStatus}>
+              <View style={styles.peekDot} />
+              <Text style={styles.peekStatusText}>
+                {currentParticipant?.status ?? "Waiting"}
+              </Text>
             </View>
           </View>
-          <View style={styles.sheetContent}>
-            <View style={styles.infoRow}>
-              <View>
-                <Text style={styles.infoLabel}>Trip code</Text>
-                <Text style={styles.infoValue}>{trip.tripCode}</Text>
-              </View>
-              <View>
-                <Text style={styles.infoLabel}>Travelers live</Text>
-                <Text style={styles.infoValue}>{activeTravelers}</Text>
-              </View>
-              <View>
-                <Text style={styles.infoLabel}>Next stop</Text>
-                <Text style={styles.infoValue} numberOfLines={1}>
-                  {trip.nextStop}
+        </View>
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={[
+            styles.sheetContent,
+            { paddingBottom: bottomOverhang + insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.infoRow}>
+            <View>
+              <Text style={styles.infoLabel}>Trip code</Text>
+              <Text style={styles.infoValue}>{trip.tripCode}</Text>
+            </View>
+            <View>
+              <Text style={styles.infoLabel}>Travelers live</Text>
+              <Text style={styles.infoValue}>{activeTravelers}</Text>
+            </View>
+            <View>
+              <Text style={styles.infoLabel}>Next stop</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>
+                {trip.nextStop}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.peopleSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your crew</Text>
+              <Text style={styles.sectionMeta}>Updates live</Text>
+            </View>
+            {trip.participants.map((participant) => (
+              <View style={styles.memberRow} key={participant.id}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{participant.name[0]}</Text>
+                </View>
+                <Text style={styles.memberName}>{participant.name}</Text>
+                <Text
+                  style={[
+                    styles.memberStatus,
+                    participant.status === "SOS" && styles.sosText,
+                  ]}
+                >
+                  {participant.status}
                 </Text>
               </View>
-            </View>
-            <View style={styles.peopleSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Your crew</Text>
-                <Text style={styles.sectionMeta}>Updates live</Text>
+            ))}
+          </View>
+          <View style={styles.statusPanel}>
+            <View style={styles.statusHeader}>
+              <View>
+                <Text style={styles.statusTitle}>Your status</Text>
+                <Text style={styles.statusSubtitle}>
+                  Let your crew know how you are doing
+                </Text>
               </View>
-              {trip.participants.map((participant) => (
-                <View style={styles.memberRow} key={participant.id}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{participant.name[0]}</Text>
-                  </View>
-                  <Text style={styles.memberName}>{participant.name}</Text>
-                  <Text
+              {isUpdating ? <ActivityIndicator color="#102d63" /> : null}
+            </View>
+            <View style={styles.statusToggle}>
+              {STATUS_OPTIONS.map((option) => {
+                const isSelected = currentParticipant?.status === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set status to ${option.label}`}
+                    onPress={() => void handleStatusChange(option.value)}
                     style={[
-                      styles.memberStatus,
-                      participant.status === "SOS" && styles.sosText,
+                      styles.statusOption,
+                      isSelected && styles.statusOptionSelected,
+                      isSelected &&
+                        option.value === "SOS" &&
+                        styles.statusOptionSos,
                     ]}
                   >
-                    {participant.status}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.statusPanel}>
-              <View style={styles.statusHeader}>
-                <View>
-                  <Text style={styles.statusTitle}>Your status</Text>
-                  <Text style={styles.statusSubtitle}>
-                    Let your crew know how you are doing
-                  </Text>
-                </View>
-                {isUpdating ? <ActivityIndicator color="#102d63" /> : null}
-              </View>
-              <View style={styles.statusToggle}>
-                {STATUS_OPTIONS.map((option) => {
-                  const isSelected =
-                    currentParticipant?.status === option.value;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Set status to ${option.label}`}
-                      onPress={() => void handleStatusChange(option.value)}
+                    <MaterialIcons
+                      name={option.icon}
+                      size={19}
+                      color={isSelected ? "#ffffff" : "#53688d"}
+                    />
+                    <Text
                       style={[
-                        styles.statusOption,
-                        isSelected && styles.statusOptionSelected,
-                        isSelected &&
-                          option.value === "SOS" &&
-                          styles.statusOptionSos,
+                        styles.statusOptionText,
+                        isSelected && styles.statusOptionTextSelected,
                       ]}
                     >
-                      <MaterialIcons
-                        name={option.icon}
-                        size={19}
-                        color={isSelected ? "#ffffff" : "#53688d"}
-                      />
-                      <Text
-                        style={[
-                          styles.statusOptionText,
-                          isSelected && styles.statusOptionTextSelected,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            {isHost ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="End trip"
-                onPress={() => void handleEndTrip()}
-                disabled={isUpdating}
-                style={[
-                  styles.endTripButton,
-                  isUpdating && styles.buttonDisabled,
-                ]}
-              >
-                <Text style={styles.endTripButtonText}>End trip</Text>
-              </Pressable>
-            ) : null}
           </View>
-        </Animated.View>
-      </View>
-    </SafeAreaView>
+          {isHost ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="End trip"
+              onPress={() => void handleEndTrip()}
+              disabled={isUpdating}
+              style={[
+                styles.endTripButton,
+                isUpdating && styles.buttonDisabled,
+              ]}
+            >
+              <Text style={styles.endTripButtonText}>End trip</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#edf2fb" },
-  screen: { flex: 1 },
-  mapLayer: { ...StyleSheet.absoluteFillObject },
+  screen: { flex: 1, backgroundColor: "#edf2fb" },
+  mapLayer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
   mapHeader: {
     position: "absolute",
-    top: 12,
     left: 18,
     right: 18,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    zIndex: 10,
   },
   iconButton: {
     width: 42,
@@ -342,7 +428,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: -100,
     overflow: "hidden",
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 24,

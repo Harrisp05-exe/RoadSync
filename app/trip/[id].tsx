@@ -1,8 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
     Animated,
     PanResponder,
     ScrollView,
@@ -14,7 +17,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-    activeTrip,
     endTrip,
     leaveTrip,
     startTrip,
@@ -22,6 +24,7 @@ import {
     type RoadTrip,
     type TripMemberStatus,
 } from "@/app-data/roadsync";
+import { auth } from "@/firebase-config";
 import { subscribeToSharedTrip } from "@/firebase-trip-service";
 import RouteMap from "../../components/route-map";
 
@@ -36,7 +39,21 @@ export default function TripDetailsScreen() {
     name?: string;
   }>();
 
-  const [trip, setTrip] = useState<RoadTrip | undefined>(activeTrip);
+  const rawId = params.id;
+  const rawTripCode = params.tripCode;
+  const routeTripId =
+    typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+  const routeTripCode =
+    typeof rawTripCode === "string"
+      ? rawTripCode
+      : Array.isArray(rawTripCode)
+        ? rawTripCode[0]
+        : "";
+  const identifier = routeTripId || routeTripCode;
+
+  const [trip, setTrip] = useState<RoadTrip | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRouteMap, setShowRouteMap] = useState(false);
   const [showCopyToast, setShowCopyToast] = useState(false);
@@ -95,6 +112,27 @@ export default function TripDetailsScreen() {
     };
   }, [showCopyToast, copyToastAnim]);
 
+  const currentUser = auth.currentUser;
+  const isHost =
+    params.isHost === "true" ||
+    (currentUser != null && trip?.hostId === currentUser.uid) ||
+    (currentUser != null &&
+      Boolean(
+        trip?.participants.some(
+          (p) => p.id === currentUser.uid && p.role === "Host",
+        ),
+      ));
+
+  const rawParticipantId = params.participantId;
+  const paramParticipantId =
+    typeof rawParticipantId === "string"
+      ? rawParticipantId
+      : Array.isArray(rawParticipantId)
+        ? rawParticipantId[0]
+        : "";
+  const participantId =
+    paramParticipantId || currentUser?.uid || (trip?.participants[0]?.id ?? "");
+
   const goToNavigation = () => {
     if (navigationStarted.current) {
       return;
@@ -104,23 +142,24 @@ export default function TripDetailsScreen() {
     router.push({
       pathname: "/trip/navigation",
       params: {
-        id: trip?.id,
-        tripCode: trip?.tripCode,
+        id: trip?.id || routeTripId,
+        tripCode: trip?.tripCode || routeTripCode,
         participantId,
         isHost: String(isHost),
-        name: trip?.name,
+        name: trip?.name || params.name,
       },
     });
   };
 
   const handleStartTrip = async () => {
-    if (!trip || isRefreshing) {
+    const targetTripId = trip?.id || routeTripId || routeTripCode;
+    if (!targetTripId || isRefreshing) {
       return;
     }
     setIsRefreshing(true);
     setStartError("");
     try {
-      await startTrip(trip.id);
+      await startTrip(targetTripId);
       goToNavigation();
     } catch (error) {
       setStartError(
@@ -165,23 +204,39 @@ export default function TripDetailsScreen() {
     }),
   ).current;
 
-  const tripId = typeof params.id === "string" ? params.id : "";
-  const participantId =
-    typeof params.participantId === "string"
-      ? params.participantId
-      : (trip?.participants[0]?.id ?? "");
-  const isHost =
-    typeof params.isHost === "string" ? params.isHost === "true" : false;
-
   useEffect(() => {
-    if (!tripId) {
+    if (!identifier) {
+      setIsLoading(false);
+      setLoadError("Trip identifier is missing.");
       return;
     }
 
-    return subscribeToSharedTrip(tripId, setTrip, () => {
-      setTrip(activeTrip);
-    });
-  }, [tripId]);
+    setIsLoading(true);
+    setLoadError("");
+
+    return subscribeToSharedTrip(
+      identifier,
+      (loadedTrip) => {
+        setTrip(loadedTrip);
+        setIsLoading(false);
+        void AsyncStorage.setItem(
+          "roadsync.lastTrip",
+          JSON.stringify({
+            id: loadedTrip.id,
+            tripCode: loadedTrip.tripCode,
+            participantId,
+            isHost,
+            name: loadedTrip.name,
+            nextStop: loadedTrip.nextStop,
+          }),
+        );
+      },
+      (error) => {
+        setIsLoading(false);
+        setLoadError(error.message || "Unable to load the shared trip.");
+      },
+    );
+  }, [identifier]);
 
   useEffect(() => {
     if (!isHost && trip?.isStarted && !navigationStarted.current) {
@@ -199,8 +254,58 @@ export default function TripDetailsScreen() {
     }
   }, [isHost, participantId, trip]);
 
+  useEffect(() => {
+    if (trip?.status === "ended") {
+      void AsyncStorage.removeItem("roadsync.lastTrip");
+      if (!isHost) {
+        Alert.alert(
+          "Trip Ended",
+          "The host has ended this road trip.",
+          [
+            {
+              text: "Return to Home",
+              onPress: () => router.replace("/home"),
+            },
+          ],
+          { cancelable: false },
+        );
+        const timer = setTimeout(() => {
+          router.replace("/home");
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [trip?.status, isHost]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.stateContainer}>
+          <ActivityIndicator size="large" color="#102d63" />
+          <Text style={styles.stateText}>Loading trip details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!trip) {
-    return null;
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateTitle}>Trip Not Found</Text>
+          <Text style={styles.stateText}>
+            {loadError ||
+              "Unable to load the shared trip. Please check the trip code or ID and try again."}
+          </Text>
+          <TouchableOpacity
+            style={styles.stateButton}
+            onPress={() => router.replace("/home")}
+          >
+            <Text style={styles.stateButtonText}>Return to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const currentParticipant = trip.participants.find(
@@ -822,5 +927,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     textAlign: "center",
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 14,
+  },
+  stateTitle: {
+    color: "#102d63",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  stateText: {
+    color: "#53688d",
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 320,
+  },
+  stateButton: {
+    marginTop: 10,
+    backgroundColor: "#102d63",
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  stateButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

@@ -1,24 +1,61 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { joinTrip } from "@/app-data/roadsync";
 import { ActionButton } from "@/components/roadsync/action-button";
 import { RoadSyncScreen, Section } from "@/components/roadsync/screen";
+import { auth } from "@/firebase-config";
 
 export default function JoinTripScreen() {
   const [travelerName, setTravelerName] = useState("");
   const [tripCode, setTripCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  useEffect(() => {
+    const loadUserName = async () => {
+      const savedName = await AsyncStorage.getItem("roadsync.user.username");
+      if (savedName?.trim()) {
+        setTravelerName(savedName.trim());
+      } else if (auth.currentUser?.displayName?.trim()) {
+        setTravelerName(auth.currentUser.displayName.trim());
+      }
+    };
+    void loadUserName();
+  }, []);
+
   const handleJoinTrip = async () => {
     setErrorMessage("");
-    const result = await joinTrip(tripCode.trim(), travelerName.trim());
+    const trimmedCode = tripCode.trim().toUpperCase();
+    const resolvedName =
+      travelerName.trim() ||
+      auth.currentUser?.displayName?.trim() ||
+      "Traveler";
+
+    if (!trimmedCode) {
+      setErrorMessage("Please enter the 6-character trip code.");
+      return;
+    }
+
+    const result = await joinTrip(trimmedCode, resolvedName);
 
     if (result.error || !result.trip || !result.participant) {
       setErrorMessage(result.error ?? "Unable to join the trip right now.");
       return;
     }
+
+    await AsyncStorage.setItem(
+      "roadsync.lastTrip",
+      JSON.stringify({
+        id: result.trip.id,
+        tripCode: result.trip.tripCode,
+        participantId: result.participant.id,
+        isHost: false,
+        name: result.trip.name,
+        nextStop: result.trip.nextStop,
+      }),
+    );
 
     router.push({
       pathname: "/trip/[id]",

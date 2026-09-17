@@ -15,7 +15,10 @@ service cloud.firestore {
     }
 
     function isTripHost(tripId) {
-      return signedIn() && tripData(tripId).hostId == request.auth.uid;
+      return signedIn() && (
+        (resource != null && resource.data.hostId == request.auth.uid) ||
+        tripData(tripId).hostId == request.auth.uid
+      );
     }
 
     match /users/{userId} {
@@ -40,7 +43,8 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid
         && request.resource.data.isStarted == false;
-      allow update: if isTripHost(tripId)
+      allow update: if signedIn()
+        && (resource.data.hostId == request.auth.uid || isTripHost(tripId))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'isStarted', 'startedAt', 'updatedAt', 'notes', 'status'
         ])
@@ -51,7 +55,7 @@ service cloud.firestore {
           || (request.resource.data.status == 'ended'
             && request.resource.data.isStarted == resource.data.isStarted)
         );
-      allow delete: if isTripHost(tripId);
+      allow delete: if signedIn() && (resource.data.hostId == request.auth.uid || isTripHost(tripId));
 
       match /participants/{userId} {
         allow get, list: if signedIn();

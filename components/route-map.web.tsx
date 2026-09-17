@@ -44,15 +44,15 @@ export default function RouteMap({
     <View
       style={[
         styles.mapFallback,
-        { height: mapHeight },
-        fullScreen && styles.fullScreen,
+        fullScreen ? styles.fullScreen : { height: mapHeight },
       ]}
     >
       <View
         style={[
           styles.previewCanvas,
-          { height: fullScreen ? mapHeight : Math.max(mapHeight - 86, 170) },
-          fullScreen && styles.fullScreenCanvas,
+          fullScreen
+            ? styles.fullScreenCanvas
+            : { height: Math.max(mapHeight - 86, 170) },
         ]}
       >
         <View style={[styles.gridLine, styles.gridLineHorizontalOne]} />
@@ -144,6 +144,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   fullScreen: {
+    height: "100%",
+    width: "100%",
     borderRadius: 0,
     borderWidth: 0,
     padding: 0,
@@ -157,6 +159,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   fullScreenCanvas: {
+    height: "100%",
+    width: "100%",
     borderRadius: 0,
   },
   gridLine: {

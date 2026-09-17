@@ -2,15 +2,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+    Animated,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,28 +27,28 @@ const slides: OnboardingSlide[] = [
     title: "Welcome to RoadSync",
     description:
       "Keep every mile, moment, and member of your road trip in sync.",
-    image: require("../../assets/images/welcome_image.png"),
+    image: require("../../assets/images/welcome_image.jpg"),
   },
   {
     id: "create",
     title: "Create your road trip",
     description:
       "Set up your trip, add the route, and invite your crew in just a few steps.",
-    image: require("../../assets/images/create_image.png"),
+    image: require("../../assets/images/create_image.jpg"),
   },
   {
     id: "join",
     title: "Join your crew",
     description:
       "Use a trip code to join an existing journey and stay connected with everyone.",
-    image: require("../../assets/images/join_image.png"),
+    image: require("../../assets/images/join_image.jpg"),
   },
   {
     id: "navigate",
     title: "Navigate together",
     description:
       "Follow the shared route, keep track of stops, and make every mile smoother.",
-    image: require("../../assets/images/navigate_image.png"),
+    image: require("../../assets/images/navigate_image.jpg"),
   },
 ];
 
@@ -255,11 +255,16 @@ const styles = StyleSheet.create({
   },
   imagePlaceholder: {
     alignSelf: "center",
-    borderRadius: 4,
+    borderRadius: 20,
     flex: 1,
-    backgroundColor: "#d8d8d8",
+    backgroundColor: "#162547",
     minHeight: 250,
     width: "100%",
+    shadowColor: "#0b1c3d",
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   copy: {
     alignItems: "center",
