@@ -2,15 +2,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
-    type NativeScrollEvent,
-    type NativeSyntheticEvent,
+  Animated,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,6 +19,7 @@ type OnboardingSlide = {
   title: string;
   description: string;
   image: number;
+  aspectRatio: number;
 };
 
 const slides: OnboardingSlide[] = [
@@ -27,34 +28,38 @@ const slides: OnboardingSlide[] = [
     title: "Welcome to RoadSync",
     description:
       "Keep every mile, moment, and member of your road trip in sync.",
-    image: require("../../assets/images/welcome_image.jpg"),
+    image: require("../../assets/images/welcome_image.jpeg"),
+    aspectRatio: 1290 / 2476,
   },
   {
     id: "create",
     title: "Create your road trip",
     description:
       "Set up your trip, add the route, and invite your crew in just a few steps.",
-    image: require("../../assets/images/create_image.jpg"),
+    image: require("../../assets/images/create_image.jpeg"),
+    aspectRatio: 1290 / 2163,
   },
   {
     id: "join",
     title: "Join your crew",
     description:
       "Use a trip code to join an existing journey and stay connected with everyone.",
-    image: require("../../assets/images/join_image.jpg"),
+    image: require("../../assets/images/join_image.jpeg"),
+    aspectRatio: 1290 / 2457,
   },
   {
     id: "navigate",
     title: "Navigate together",
     description:
       "Follow the shared route, keep track of stops, and make every mile smoother.",
-    image: require("../../assets/images/navigate_image.jpg"),
+    image: require("../../assets/images/navigate_image.jpeg"),
+    aspectRatio: 1290 / 2796,
   },
 ];
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
-  const contentWidth = width - 48;
+  const { width, height } = useWindowDimensions();
+  const contentWidth = width - 40;
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = useRef<FlatList<OnboardingSlide>>(null);
   const imageFade = useRef(new Animated.Value(0)).current;
@@ -117,30 +122,42 @@ export default function HomeScreen() {
           scrollEventThrottle={16}
           renderItem={({ item }) => (
             <View style={[styles.slide, { width: contentWidth }]}>
-              <Animated.Image
-                source={item.image}
+              <View
                 style={[
-                  styles.imagePlaceholder,
+                  styles.mockupFrame,
                   {
-                    opacity: imageFade,
-                    transform: [
-                      {
-                        translateY: imageFade.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [18, 0],
-                        }),
-                      },
-                      {
-                        scale: imageFade.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.96, 1],
-                        }),
-                      },
-                    ],
+                    aspectRatio: item.aspectRatio,
+                    maxHeight: Math.min(height * 0.48, 420),
                   },
                 ]}
-                resizeMode="cover"
-              />
+              >
+                <View style={styles.mockupInner}>
+                  <Animated.Image
+                    source={item.image}
+                    style={[
+                      styles.mockupImage,
+                      {
+                        opacity: imageFade,
+                        transform: [
+                          {
+                            translateY: imageFade.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [14, 0],
+                            }),
+                          },
+                          {
+                            scale: imageFade.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.97, 1],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                    resizeMode="cover"
+                  />
+                </View>
+              </View>
             </View>
           )}
         />
@@ -163,13 +180,13 @@ export default function HomeScreen() {
         >
           <View
             style={styles.pagination}
-            accessibilityLabel={`Slide ${activeIndex + 1} of ${slides.length}`}
+            accessibilityLabel={"Slide " + (activeIndex + 1) + " of " + slides.length}
           >
             {slides.map((slide, index) => (
               <Pressable
                 key={slide.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Go to ${slide.title}`}
+                accessibilityLabel={"Go to " + slide.title}
                 onPress={() => goToSlide(index)}
                 style={[styles.dot, index === activeIndex && styles.activeDot]}
               />
@@ -224,16 +241,18 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
+    borderRadius: 28,
+    overflow: "hidden",
     paddingTop: 8,
-    paddingBottom: 28,
+    paddingBottom: 20,
   },
   topBar: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 42,
+    minHeight: 40,
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 4,
     position: "relative",
   },
   brand: {
@@ -244,38 +263,48 @@ const styles = StyleSheet.create({
   },
   carousel: {
     flex: 1,
-    marginBottom: 12,
-    marginTop: 12,
+    marginTop: 6,
+    marginBottom: 4,
   },
   slide: {
     alignItems: "center",
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    justifyContent: "center",
+    paddingBottom: 4,
+    paddingHorizontal: 8,
+    paddingTop: 4,
   },
-  imagePlaceholder: {
-    alignSelf: "center",
-    borderRadius: 20,
-    flex: 1,
-    backgroundColor: "#162547",
-    minHeight: 250,
-    width: "100%",
-    shadowColor: "#0b1c3d",
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
+  mockupFrame: {
+    height: "100%",
+    borderRadius: 26,
+    backgroundColor: "#ffffff",
+    borderWidth: 2.5,
+    borderColor: "rgba(255, 255, 255, 0.7)",
+    shadowColor: "#051026",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    elevation: 10,
+  },
+  mockupInner: {
+    flex: 1,
+    borderRadius: 23,
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
+  },
+  mockupImage: {
+    width: "100%",
+    height: "100%",
   },
   copy: {
     alignItems: "center",
-    paddingHorizontal: 28,
-    paddingTop: 20,
-    paddingBottom: 18,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
   pagination: {
     flexDirection: "row",
     gap: 7,
-    marginBottom: 18,
+    marginBottom: 10,
   },
   dot: {
     width: 7,
@@ -289,15 +318,15 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#ffffff",
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "900",
     textAlign: "center",
   },
   description: {
     color: "#e1ebe7",
-    fontSize: 15,
-    lineHeight: 21,
-    marginTop: 12,
+    fontSize: 14,
+    lineHeight: 19,
+    marginTop: 6,
     maxWidth: 290,
     textAlign: "center",
   },
